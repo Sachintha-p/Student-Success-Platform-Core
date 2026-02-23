@@ -1,0 +1,54 @@
+# Byte-compiled / optimized / DLL files
+*.class
+*.pyc
+
+# Maven build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE-specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.vscode/
+
+# Lombok
+/lombok.config
+
+# Logs
+*.log
+logs/
+log/
+
+# Environment files (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V7
+.Trashes
+Thumbs.db
+
+# Spring Boot production profile (keep out of VCS)
+src/main/resources/application-prod.properties
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# Compiled class files
+*.class
+
+# Spring Tool Suite
+.sts4-cache

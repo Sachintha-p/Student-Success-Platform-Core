@@ -1,0 +1,121 @@
+A production-ready Spring Boot 3.2 / Java 17 REST API for **SLIIT's Student Success Platform**, providing 4 feature modules with JWT security, PostgreSQL, Flyway migrations, and OpenAI GPT-4 integration.
+
+---
+
+## Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Java | 17+ |
+| Maven | 3.9+ |
+| PostgreSQL | 15+ |
+| Node.js *(frontend)* | 18+ |
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root (never commit this):
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_USERNAME` | PostgreSQL username | `postgres` |
+| `DB_PASSWORD` | PostgreSQL password | `secret` |
+| `JWT_SECRET` | HS512 signing key (≥64 chars) | `change-me-...` |
+| `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
+| `MAIL_USERNAME` | SMTP username | `noreply@sliit.lk` |
+| `MAIL_PASSWORD` | SMTP password | `app-password` |
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone <repo-url>
+cd student-platform-backend
+
+# 2. Create the database
+psql -U postgres -c "CREATE DATABASE student_platform;"
+
+# 3. Set environment variables (export or use .env loader)
+export DB_USERNAME=postgres
+export DB_PASSWORD=your_password
+export JWT_SECRET=your_very_long_secret_key_at_least_64_characters_long
+export OPENAI_API_KEY=sk-your-key
+
+# 4. Run (Flyway will auto-apply migrations on startup)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 5. Verify
+open http://localhost:8080/swagger-ui.html
+open http://localhost:8080/actuator/health
+```
+
+---
+
+## API Documentation
+
+Swagger UI: **http://localhost:8080/swagger-ui.html**
+OpenAPI JSON: **http://localhost:8080/v3/api-docs**
+
+---
+
+## Module Descriptions
+
+| # | Module | Description |
+|---|--------|-------------|
+| 1 | **Smart Team Matchmaker** | AI-powered group formation, skills-based matching, invitations & join requests |
+| 2 | **Job Matchmaker & ATS** | CV upload, ATS scoring, job listing, AI-driven CV suggestions & job matching |
+| 3 | **Campus Engagement Hub** | Campus events, RSVP, project milestones, Kanban tasks, group chat, file sharing |
+| 4 | **AI Academic Assistant** | GPT-4 powered Q&A, conversation history, study resource library, bookmarks |
+
+---
+
+## Git Branch Strategy
+
+```
+main        → production-ready releases
+develop     → integration branch (PRs merge here)
+feature/module-1   → Smart Team Matchmaker
+feature/module-2   → Job Matchmaker & ATS
+feature/module-3   → Campus Engagement Hub
+feature/module-4   → AI Academic Assistant
+```
+
+---
+
+## First Commit & Remote Setup
+
+```bash
+git init
+git checkout -b main
+git add .
+git commit -m "feat: initial project scaffold - Student Success Platform
+
+- Spring Boot 3.2 + Java 17 base setup
+- 4-module package structure (team, job, campus, ai)
+- JWT security configuration
+- PostgreSQL + Flyway DB migration setup
+- SOLID principles applied: interfaces for all services
+- Global exception handler + ApiResponse wrapper
+- Swagger/OpenAPI 3 documentation configured
+- Base entities with auditing (createdAt, updatedAt)
+- Application configs (dev/prod profiles)"
+
+git remote add origin <your-repo-url>
+git push -u origin main
+git checkout -b develop
+git push -u origin develop
+```
+
+---
+
+## Team Members
+
+| Name | Student ID | Module |
+|------|-----------|--------|
+| *(Add team member)* | IT000000 | Module 1 |
+| *(Add team member)* | IT000000 | Module 2 |
+| *(Add team member)* | IT000000 | Module 3 |
+| *(Add team member)* | IT000000 | Module 4 |
