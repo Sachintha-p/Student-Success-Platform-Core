@@ -79,7 +79,7 @@ public class AtsServiceImpl implements IAtsService {
 
     String aiFeedback;
     try {
-      aiFeedback = chatClient.prompt(prompt).call().content();
+      aiFeedback = chatClient.prompt().user(prompt).call().content();
     } catch (Exception e) {
       log.error("AI feedback generation failed: {}", e.getMessage());
       aiFeedback = "AI feedback unavailable — please try again later.";

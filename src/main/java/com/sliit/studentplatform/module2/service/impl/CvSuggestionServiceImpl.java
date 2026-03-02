@@ -52,7 +52,7 @@ public class CvSuggestionServiceImpl implements ICvSuggestionService {
 
     String aiResponse;
     try {
-      aiResponse = chatClient.prompt(prompt).call().content();
+      aiResponse = chatClient.prompt().user(prompt).call().content();
     } catch (Exception e) {
       log.error("GPT-4 CV suggestion generation failed: {}", e.getMessage());
       aiResponse = "[]";
