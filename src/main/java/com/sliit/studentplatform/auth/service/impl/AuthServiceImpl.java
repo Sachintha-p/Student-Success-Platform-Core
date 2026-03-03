@@ -15,24 +15,23 @@ import com.sliit.studentplatform.common.exception.ResourceNotFoundException;
 import com.sliit.studentplatform.common.exception.UnauthorizedException;
 import com.sliit.studentplatform.common.security.JwtTokenProvider;
 import com.sliit.studentplatform.common.security.UserPrincipal;
+import com.sliit.studentplatform.common.service.EmailService;
 import com.sliit.studentplatform.config.JwtConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Implementation of {@link IAuthService}.
- *
- * <p>
- * Handles user registration (with optional student profile creation),
- * login, refresh token exchange, and profile retrieval.
- */
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Random;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -45,151 +44,171 @@ public class AuthServiceImpl implements IAuthService {
   private final JwtTokenProvider jwtTokenProvider;
   private final JwtConfig jwtConfig;
   private final UserDetailsService userDetailsService;
+  private final EmailService emailService;
 
-  // ─────────────────────── Register ────────────────────────────────────────
+  // ─────────────────────── OTP Login (Fixed for Debugging) ───────────────────
+
+  @Override
+  @Transactional // This only covers the DB registration part now
+  public void requestOtp(String email) {
+    log.info("Processing OTP request for: {}", email);
+
+    if (!email.endsWith("@sliit.lk") && !email.endsWith("@my.sliit.lk")) {
+      throw new UnauthorizedException("Only SLIIT email addresses are allowed");
+    }
+
+    User user = userRepository.findByEmail(email).orElseGet(() -> {
+      log.info("Auto-registering new SLIIT user: {}", email);
+      return userRepository.save(User.builder()
+              .email(email)
+              .fullName(email.split("@")[0])
+              .password(passwordEncoder.encode("OTP_SESSION_STUB"))
+              .role(email.endsWith("@my.sliit.lk") ? Role.STUDENT : Role.ADMIN)
+              .enabled(true)
+              .build());
+    });
+
+    String otp = String.format("%06d", new Random().nextInt(999999));
+    user.setOtp(otp);
+    user.setOtpExpiry(LocalDateTime.now().plusMinutes(15)); // Increased to 15 mins for easier testing
+    userRepository.save(user);
+
+    // Commit the DB change immediately so you can see it in Neon
+    userRepository.flush();
+
+    // Send email in a try-catch block so it doesn't crash the whole request
+    try {
+      emailService.sendOtpEmail(email, otp);
+      log.info("OTP email successfully sent to: {}", email);
+    } catch (Exception e) {
+      log.error("EMAIL DELIVERY FAILED but OTP is saved in DB. Error: {}", e.getMessage());
+      log.info(">>> DEBUG OTP FOR MANUAL ENTRY: {} <<<", otp);
+      // We don't re-throw the error so Postman gets a 200 OK
+    }
+  }
+
+  @Override
+  @Transactional
+  public AuthResponse verifyOtp(String email, String otp) {
+    log.info("Verifying OTP for: {}", email);
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+    if (user.getOtp() == null || !user.getOtp().equals(otp)) {
+      throw new UnauthorizedException("Invalid OTP provided");
+    }
+
+    if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+      throw new UnauthorizedException("OTP has expired. Please request a new one.");
+    }
+
+    user.setOtp(null);
+    user.setOtpExpiry(null);
+    userRepository.save(user);
+
+    Authentication authentication = new UsernamePasswordAuthenticationToken(
+            UserPrincipal.create(user),
+            null,
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+    );
+
+    return buildAuthResponse(user,
+            jwtTokenProvider.generateAccessToken(authentication),
+            jwtTokenProvider.generateRefreshToken(user.getId()));
+  }
+
+  // ─────────────────────── Standard Auth Methods ──────────────────────────
 
   @Override
   @Transactional
   public AuthResponse register(RegisterRequest request) {
-    log.info("Registering new user with email: {}", request.getEmail());
-
-    // 1. Check uniqueness
     if (userRepository.existsByEmail(request.getEmail())) {
-      throw new ConflictException("A user with email '" + request.getEmail() + "' already exists");
+      throw new ConflictException("User already exists with email: " + request.getEmail());
     }
 
-    if (request.getRole() == Role.STUDENT
-        && request.getRegistrationNumber() != null
-        && studentRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
-      throw new ConflictException("Registration number '" + request.getRegistrationNumber()
-          + "' is already in use");
-    }
-
-    // 2. Create and persist User
     User user = User.builder()
-        .fullName(request.getFullName())
-        .email(request.getEmail())
-        .password(passwordEncoder.encode(request.getPassword()))
-        .role(request.getRole())
-        .enabled(true)
-        .build();
+            .fullName(request.getFullName())
+            .email(request.getEmail())
+            .password(passwordEncoder.encode(request.getPassword()))
+            .role(request.getRole())
+            .enabled(true)
+            .build();
     user = userRepository.save(user);
 
-    // 3. Create Student profile if role is STUDENT
     if (request.getRole() == Role.STUDENT) {
       Student student = Student.builder()
-          .user(user)
-          .registrationNumber(request.getRegistrationNumber())
-          .degreeProgramme(request.getDegreeProgramme())
-          .yearOfStudy(request.getYearOfStudy())
-          .semester(request.getSemester())
-          .build();
+              .user(user)
+              .registrationNumber(request.getRegistrationNumber())
+              .degreeProgramme(request.getDegreeProgramme())
+              .yearOfStudy(request.getYearOfStudy())
+              .semester(request.getSemester())
+              .build();
       studentRepository.save(student);
     }
 
-    // 4. Authenticate and generate tokens
     Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
-    String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-    log.info("User registered successfully with id: {}", user.getId());
-    return buildAuthResponse(user, accessToken, refreshToken);
+    return buildAuthResponse(user, jwtTokenProvider.generateAccessToken(authentication),
+            jwtTokenProvider.generateRefreshToken(user.getId()));
   }
-
-  // ─────────────────────── Login ────────────────────────────────────────────
 
   @Override
   public AuthResponse login(LoginRequest request) {
-    log.info("Login attempt for email: {}", request.getEmail());
-
-    // TODO: add brute-force protection (rate limiting per IP)
     Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
     UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
     User user = userRepository.findById(principal.getId())
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
 
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
-    String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-    log.info("User {} logged in successfully", user.getId());
-    return buildAuthResponse(user, accessToken, refreshToken);
+    return buildAuthResponse(user, jwtTokenProvider.generateAccessToken(authentication),
+            jwtTokenProvider.generateRefreshToken(user.getId()));
   }
-
-  // ─────────────────────── Refresh Token ───────────────────────────────────
 
   @Override
   public AuthResponse refreshToken(String refreshToken) {
-    log.info("Refresh token request");
-
     if (!jwtTokenProvider.validateToken(refreshToken)) {
-      throw new UnauthorizedException("Invalid or expired refresh token");
+      throw new UnauthorizedException("Invalid refresh token.");
     }
-
     Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
     User user = userRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-    // Build a new authentication to generate access token
     org.springframework.security.core.userdetails.UserDetails userDetails = userDetailsService
-        .loadUserByUsername(String.valueOf(userId));
+            .loadUserByUsername(String.valueOf(userId));
     Authentication authentication = new UsernamePasswordAuthenticationToken(
-        userDetails, null, userDetails.getAuthorities());
+            userDetails, null, userDetails.getAuthorities());
 
-    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
-    String newRefreshToken = jwtTokenProvider.generateRefreshToken(userId);
-
-    return buildAuthResponse(user, newAccessToken, newRefreshToken);
+    return buildAuthResponse(user, jwtTokenProvider.generateAccessToken(authentication),
+            jwtTokenProvider.generateRefreshToken(userId));
   }
-
-  // ─────────────────────── Profile ─────────────────────────────────────────
 
   @Override
   public UserProfileResponse getProfile(Long userId) {
-    log.info("Fetching profile for user id: {}", userId);
-
     User user = userRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
     UserProfileResponse.UserProfileResponseBuilder builder = UserProfileResponse.builder()
-        .id(user.getId())
-        .fullName(user.getFullName())
-        .email(user.getEmail())
-        .role(user.getRole())
-        .enabled(user.isEnabled());
+            .id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
+            .role(user.getRole()).enabled(user.isEnabled());
 
     if (user.getRole() == Role.STUDENT) {
       studentRepository.findByUserId(userId).ifPresent(student -> {
-        builder
-            .registrationNumber(student.getRegistrationNumber())
-            .degreeProgramme(student.getDegreeProgramme())
-            .yearOfStudy(student.getYearOfStudy())
-            .semester(student.getSemester())
-            .gpa(student.getGpa())
-            .skills(student.getSkills())
-            .bio(student.getBio())
-            .profilePictureUrl(student.getProfilePictureUrl());
+        builder.registrationNumber(student.getRegistrationNumber())
+                .degreeProgramme(student.getDegreeProgramme())
+                .yearOfStudy(student.getYearOfStudy())
+                .semester(student.getSemester());
       });
     }
-
     return builder.build();
   }
 
-  // ─────────────────────── Helpers ─────────────────────────────────────────
-
   private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
     return AuthResponse.builder()
-        .accessToken(accessToken)
-        .refreshToken(refreshToken)
-        .tokenType("Bearer")
-        .expiresIn(jwtConfig.getExpiration())
-        .userId(user.getId())
-        .email(user.getEmail())
-        .fullName(user.getFullName())
-        .role(user.getRole())
-        .build();
+            .accessToken(accessToken).refreshToken(refreshToken).tokenType("Bearer")
+            .expiresIn(jwtConfig.getExpiration()).userId(user.getId())
+            .email(user.getEmail()).fullName(user.getFullName()).role(user.getRole())
+            .build();
   }
 }

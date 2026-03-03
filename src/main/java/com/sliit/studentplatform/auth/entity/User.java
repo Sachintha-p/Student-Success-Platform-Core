@@ -4,6 +4,7 @@ import com.sliit.studentplatform.common.audit.AuditableEntity;
 import com.sliit.studentplatform.common.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 /**
  * Represents an authenticated user account in the platform.
@@ -14,7 +15,7 @@ import lombok.*;
  */
 @Entity
 @Table(name = "users", uniqueConstraints = {
-    @UniqueConstraint(columnNames = "email", name = "uq_users_email")
+        @UniqueConstraint(columnNames = "email", name = "uq_users_email")
 })
 @Getter
 @Setter
@@ -44,6 +45,18 @@ public class User extends AuditableEntity {
   @Column(nullable = false)
   @Builder.Default
   private boolean enabled = true;
+
+  // --- Step 4: OTP Fields for Email Login ---
+
+  /** Current active OTP for login. */
+  @Column(name = "otp", length = 6)
+  private String otp;
+
+  /** Expiration timestamp for the active OTP. */
+  @Column(name = "otp_expiry")
+  private LocalDateTime otpExpiry;
+
+  // ------------------------------------------
 
   /** One-to-one relation to student details (null for non-student users). */
   @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
