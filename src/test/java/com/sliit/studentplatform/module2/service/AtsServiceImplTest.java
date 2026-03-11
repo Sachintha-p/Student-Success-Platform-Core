@@ -1,6 +1,7 @@
 package com.sliit.studentplatform.module2.service;
 
 import com.sliit.studentplatform.auth.entity.User;
+import com.sliit.studentplatform.ai.service.AiMatchmakerService; // Added missing import
 import com.sliit.studentplatform.module2.dto.response.AtsScoreResponse;
 import com.sliit.studentplatform.module2.entity.AtsAnalysis;
 import com.sliit.studentplatform.module2.entity.JobListing;
@@ -16,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.ai.chat.client.ChatClient;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +36,7 @@ class AtsServiceImplTest {
   @Mock
   private JobListingRepository jobListingRepository;
   @Mock
-  private ChatClient chatClient;
+  private AiMatchmakerService aiMatchmakerService; // Changed from ChatClient to AiMatchmakerService
 
   @InjectMocks
   private AtsServiceImpl atsService;
@@ -58,13 +58,25 @@ class AtsServiceImplTest {
     when(resumeRepository.findById(10L)).thenReturn(Optional.of(resume));
     when(jobListingRepository.findById(20L)).thenReturn(Optional.of(jobListing));
 
-    // Mock chatClient by mocking the entire prompt chain
-    chatClient = mock(ChatClient.class);
-    atsService = new AtsServiceImpl(atsAnalysisRepository, resumeRepository, jobListingRepository, chatClient);
+    // Create mock response for the AI Service
+    AtsScoreResponse mockAiResponse = AtsScoreResponse.builder()
+            .atsScore(50.0)
+            .aiFeedback("Good match")
+            .keywordMatches(new String[]{"Java"})
+            .missingKeywords(new String[]{"AWS"})
+            .build();
 
-    when(chatClient.prompt()).thenAnswer(inv -> mock(Object.class));
+    // Mock the new service call
+    when(aiMatchmakerService.calculateAtsScore(anyString(), anyString())).thenReturn(mockAiResponse);
 
-    AtsAnalysis saved = AtsAnalysis.builder().id(100L).resume(resume).jobListing(jobListing).atsScore(50.0).aiFeedback("Feedback").build();
+    AtsAnalysis saved = AtsAnalysis.builder()
+            .id(100L)
+            .resume(resume)
+            .jobListing(jobListing)
+            .atsScore(50.0)
+            .aiFeedback("Feedback")
+            .build();
+
     when(atsAnalysisRepository.save(any(AtsAnalysis.class))).thenReturn(saved);
 
     AtsScoreResponse response = atsService.analyzeResume(10L, 20L, 1L);
@@ -72,17 +84,23 @@ class AtsServiceImplTest {
   }
 
   @Test
-  @DisplayName("analyzeResume — should degrade gracefully when AI call fails")
-  void analyzeResume_shouldDegradeGracefullyWhenAiFails() {
+  @DisplayName("analyzeResume — should handle AI call failures gracefully")
+  void analyzeResume_shouldHandleAiFails() {
     when(resumeRepository.findById(10L)).thenReturn(Optional.of(resume));
     when(jobListingRepository.findById(20L)).thenReturn(Optional.of(jobListing));
 
-    chatClient = mock(ChatClient.class);
-    atsService = new AtsServiceImpl(atsAnalysisRepository, resumeRepository, jobListingRepository, chatClient);
+    // Simulate AI Service failure
+    when(aiMatchmakerService.calculateAtsScore(anyString(), anyString()))
+            .thenThrow(new RuntimeException("AI fail"));
 
-    when(chatClient.prompt()).thenThrow(new RuntimeException("AI fail"));
+    AtsAnalysis saved = AtsAnalysis.builder()
+            .id(101L)
+            .resume(resume)
+            .jobListing(jobListing)
+            .atsScore(0.0)
+            .aiFeedback("AI feedback unavailable")
+            .build();
 
-    AtsAnalysis saved = AtsAnalysis.builder().id(101L).resume(resume).jobListing(jobListing).atsScore(50.0).aiFeedback("AI feedback unavailable").build();
     when(atsAnalysisRepository.save(any(AtsAnalysis.class))).thenReturn(saved);
 
     AtsScoreResponse response = atsService.analyzeResume(10L, 20L, 1L);
@@ -94,7 +112,9 @@ class AtsServiceImplTest {
   void getAnalysisHistory_shouldReturnAllRecords() {
     AtsAnalysis analysis = AtsAnalysis.builder().id(50L).resume(resume).atsScore(80.0).build();
     when(atsAnalysisRepository.findByResumeUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(analysis));
+
     var history = atsService.getAnalysisHistory(1L);
     assertThat(history).hasSize(1);
+    assertThat(history.get(0).getAtsScore()).isEqualTo(80.0);
   }
 }
