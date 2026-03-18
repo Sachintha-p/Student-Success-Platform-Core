@@ -1,12 +1,10 @@
-package com.sliit.studentplatform.module3.entity;
+package com.sliit.studentplatformbackend.module3.entity;
 
-import com.sliit.studentplatform.common.audit.AuditableEntity;
-import com.sliit.studentplatform.module1.entity.ProjectGroup;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
 
-/** A milestone (deadline) within a project group's timeline. */
 @Entity
 @Table(name = "project_milestones")
 @Getter
@@ -14,23 +12,25 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectMilestone extends AuditableEntity {
+public class ProjectMilestone {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private ProjectGroup group;
+  @Column(name = "group_id", nullable = false)
+  private Long groupId;
 
-  @Column(nullable = false, length = 200)
+  @Column(nullable = false, length = 150)
   private String title;
-  @Column(columnDefinition = "TEXT")
+
+  @Column(nullable = false, length = 1000)
   private String description;
-  @Column(name = "due_date")
+
+  @Column(name = "due_date", nullable = false)
   private LocalDate dueDate;
+
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 30)
-  @Builder.Default
-  private String status = "PENDING";
+  private MilestoneStatus status;
 }

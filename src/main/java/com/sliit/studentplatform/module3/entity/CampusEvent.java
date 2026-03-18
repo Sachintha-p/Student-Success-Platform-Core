@@ -1,13 +1,11 @@
-package com.sliit.studentplatform.module3.entity;
+package com.sliit.studentplatformbackend.module3.entity;
 
-import com.sliit.studentplatform.auth.entity.User;
-import com.sliit.studentplatform.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
-/** A campus event organised by students or staff. */
 @Entity
 @Table(name = "campus_events")
 @Getter
@@ -15,31 +13,34 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CampusEvent extends AuditableEntity {
+public class CampusEvent {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(nullable = false, length = 200)
+  @Column(nullable = false, length = 150)
   private String title;
-  @Column(columnDefinition = "TEXT")
+
+  @Column(nullable = false, length = 1000)
   private String description;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 30)
+  private EventCategory category;
+
+  @Column(nullable = false, length = 150)
+  private String location;
+
   @Column(name = "event_date", nullable = false)
-  private LocalDateTime eventDate;
-  @Column(length = 200)
-  private String venue;
-  @Column(name = "is_online")
-  @Builder.Default
-  private boolean online = false;
-  @Column(name = "max_attendees")
-  private Integer maxAttendees;
+  private LocalDate eventDate;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "organizer_id", nullable = false)
-  private User organizer;
+  @Column(name = "event_time", nullable = false)
+  private LocalTime eventTime;
 
-  @Column(name = "is_published")
-  @Builder.Default
-  private boolean published = false;
+  @Column(nullable = false)
+  private Integer capacity;
+
+  @Column(name = "organizer_name", nullable = false, length = 100)
+  private String organizerName;
 }
