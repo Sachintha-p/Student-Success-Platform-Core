@@ -9,6 +9,5 @@ package com.sliit.studentplatform.common.enums;
  */
 public enum Role {
   STUDENT,
-  LECTURER,
   ADMIN
 }

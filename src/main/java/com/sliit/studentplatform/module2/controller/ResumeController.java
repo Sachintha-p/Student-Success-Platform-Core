@@ -25,7 +25,8 @@ public class ResumeController {
   private final IResumeService resumeService;
   private final PdfExtractionService pdfExtractionService; // <-- Added your new extraction service
 
-  @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  // Use "/upload" here so your Postman URL http://localhost:8080/api/v1/resumes/upload works!
+  @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<ResumeResponse>> upload(
           @RequestParam("file") MultipartFile file,
           @AuthenticationPrincipal UserPrincipal currentUser) {
