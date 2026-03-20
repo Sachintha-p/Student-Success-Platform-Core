@@ -1,0 +1,126 @@
+{
+  "info": {
+    "_postman_id": "b1e1e1e1-1234-5678-9101-abcdefabcdef",
+    "name": "Student Success Platform - Auth & Student API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Auth and Student endpoints. Uses environment variables for baseUrl, email, otp, and accessToken."
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Request OTP (Email Login)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login", "email"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {},
+              "status": "OK",
+              "code": 200,
+              "body": "\"OTP sent to your SLIIT email.\""
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP (Login)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login", "verify"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {},
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"accessToken\": \"eyJ...\",\n  \"refreshToken\": \"eyJ...\",\n  \"tokenType\": \"Bearer\",\n  \"expiresIn\": 3600,\n  \"userId\": 123,\n  \"email\": \"student@sliit.lk\",\n  \"fullName\": \"John Doe\",\n  \"role\": \"STUDENT\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Student",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/students/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "students", "me"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {},
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile retrieved successfully\",\n  \"data\": {\n    \"id\": 123,\n    \"fullName\": \"John Doe\",\n    \"email\": \"student@sliit.lk\",\n    \"role\": \"STUDENT\",\n    \"enabled\": true,\n    \"registrationNumber\": \"IT12345678\",\n    \"degreeProgramme\": \"BSc (Hons) in IT\",\n    \"yearOfStudy\": 3,\n    \"semester\": 2,\n    \"gpa\": 3.75,\n    \"skills\": [\"Java\", \"Spring Boot\"],\n    \"bio\": \"Enthusiastic student...\",\n    \"profilePictureUrl\": \"https://.../profile.jpg\"\n  },\n  \"timestamp\": \"2026-03-08T10:00:00\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"degreeProgramme\": \"BSc (Hons) in IT\",\n  \"yearOfStudy\": 3,\n  \"semester\": 2,\n  \"bio\": \"Enthusiastic student...\",\n  \"skills\": [\"Java\", \"Spring Boot\"],\n  \"profilePictureUrl\": \"https://.../profile.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/students/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "students", "me"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {},
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile updated successfully\",\n  \"data\": {\n    \"id\": 123,\n    \"fullName\": \"John Doe\",\n    \"email\": \"student@sliit.lk\",\n    \"role\": \"STUDENT\",\n    \"enabled\": true,\n    \"registrationNumber\": \"IT12345678\",\n    \"degreeProgramme\": \"BSc (Hons) in IT\",\n    \"yearOfStudy\": 3,\n    \"semester\": 2,\n    \"gpa\": 3.75,\n    \"skills\": [\"Java\", \"Spring Boot\"],\n    \"bio\": \"Enthusiastic student...\",\n    \"profilePictureUrl\": \"https://.../profile.jpg\"\n  },\n  \"timestamp\": \"2026-03-08T10:00:00\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
