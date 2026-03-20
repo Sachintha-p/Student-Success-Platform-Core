@@ -14,15 +14,18 @@ import java.util.List;
 @Repository
 public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long> {
 
-  Page<ProjectGroup> findByOwnerId(Long ownerId, Pageable pageable);
+    Page<ProjectGroup> findByOwnerId(Long ownerId, Pageable pageable);
 
-  Page<ProjectGroup> findByOpenTrue(Pageable pageable);
+    Page<ProjectGroup> findByOpenTrue(Pageable pageable);
 
-  @Query("SELECT g FROM ProjectGroup g WHERE " +
-      "LOWER(g.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-      "LOWER(g.subject) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-  Page<ProjectGroup> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+    @Query("SELECT g FROM ProjectGroup g WHERE " +
+            "LOWER(g.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(g.subject) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    Page<ProjectGroup> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
-  @Query("SELECT COUNT(m) FROM GroupMember m WHERE m.group.id = :groupId")
-  int countMembersInGroup(@Param("groupId") Long groupId);
+    @Query("SELECT COUNT(m) FROM GroupMember m WHERE m.group.id = :groupId")
+    int countMembersInGroup(@Param("groupId") Long groupId);
+
+    // --- YOUR ADDED METHOD (For GroupService CRUD) ---
+    List<ProjectGroup> findByLeaderId(Long leaderId);
 }
