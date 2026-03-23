@@ -55,8 +55,8 @@ public class SecurityConfig {
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                    // NEW: Restrict all /admin/** routes to users with the ADMIN authority
-                    .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
+                    // FIXED: Changed hasAuthority to hasRole so it correctly matches "ROLE_ADMIN"
+                    .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
                     .anyRequest().authenticated())
             .authenticationProvider(authenticationProvider())

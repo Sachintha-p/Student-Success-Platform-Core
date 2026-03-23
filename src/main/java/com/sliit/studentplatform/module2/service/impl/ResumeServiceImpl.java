@@ -11,6 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,22 +44,41 @@ public class ResumeServiceImpl implements IResumeService {
     log.info("Uploading resume for user id: {}", userId);
 
     var user = userRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-    // TODO: Upload file to S3 and obtain file URL
-    String fileUrl = "https://storage.example.com/resumes/" + userId + "/" + file.getOriginalFilename();
+    // 1. Define the local folder path (creates a folder for each user)
+    String uploadDir = "uploads/resumes/" + userId + "/";
+    File directory = new File(uploadDir);
+    if (!directory.exists()) {
+      directory.mkdirs(); // Creates the folders if they don't exist yet!
+    }
+
+    // 2. Clean the file name (removes dangerous characters)
+    String fileName = org.springframework.util.StringUtils.cleanPath(file.getOriginalFilename());
+    java.nio.file.Path targetLocation = java.nio.file.Paths.get(uploadDir + fileName);
+
+    // 3. Save the actual file to your computer's hard drive!
+    try {
+      java.nio.file.Files.copy(file.getInputStream(), targetLocation, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    } catch (java.io.IOException ex) {
+      log.error("Failed to store file {}", fileName, ex);
+      throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+    }
+
+    // 4. Save the local absolute path as the URL so you can find it later
+    String fileUrl = targetLocation.toAbsolutePath().toString();
 
     Resume resume = Resume.builder()
-        .user(user)
-        .fileName(file.getOriginalFilename())
-        .fileUrl(fileUrl)
-        .fileSize(file.getSize())
-        .contentType(file.getContentType())
-        .primary(resumeRepository.findByUserId(userId).isEmpty())
-        .build();
+            .user(user)
+            .fileName(fileName)
+            .fileUrl(fileUrl) // Now stores the local Windows/Mac path!
+            .fileSize(file.getSize())
+            .contentType(file.getContentType())
+            .primary(resumeRepository.findByUserId(userId).isEmpty())
+            .build();
 
     resume = resumeRepository.save(resume);
-    log.info("Resume saved with id: {}", resume.getId());
+    log.info("Resume saved locally with id: {} at path: {}", resume.getId(), fileUrl);
     return mapToResponse(resume);
   }
 
