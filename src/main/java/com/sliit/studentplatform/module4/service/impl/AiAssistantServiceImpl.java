@@ -8,13 +8,14 @@ import com.sliit.studentplatform.module4.entity.Conversation;
 import com.sliit.studentplatform.module4.repository.ChatMessageRepository;
 import com.sliit.studentplatform.module4.repository.ConversationRepository;
 import com.sliit.studentplatform.module4.service.interfaces.IAiAssistantService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * Implementation of {@link IAiAssistantService}.
@@ -24,13 +25,20 @@ import java.time.LocalDateTime;
  * conversation history, and returns a structured response.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AiAssistantServiceImpl implements IAiAssistantService {
 
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
   private final ConversationRepository conversationRepository;
   private final ChatMessageRepository chatMessageRepository;
+
+  public AiAssistantServiceImpl(@Autowired(required = false) ChatClient chatClient,
+      ConversationRepository conversationRepository,
+      ChatMessageRepository chatMessageRepository) {
+    this.chatClient = Optional.ofNullable(chatClient);
+    this.conversationRepository = conversationRepository;
+    this.chatMessageRepository = chatMessageRepository;
+  }
 
   @Override
   @Transactional
@@ -53,15 +61,19 @@ public class AiAssistantServiceImpl implements IAiAssistantService {
         + (request.getSubject() != null ? " The student is asking about subject: " + request.getSubject() + "." : "");
 
     String aiAnswer;
-    try {
-      aiAnswer = chatClient.prompt()
-          .system(systemPrompt)
-          .user(request.getQuery())
-          .call()
-          .content();
-    } catch (Exception e) {
-      log.error("GPT-4 call failed: {}", e.getMessage());
-      aiAnswer = "I'm sorry, I couldn't process your question right now. Please try again later.";
+    if (chatClient.isPresent()) {
+      try {
+        aiAnswer = chatClient.get().prompt()
+            .system(systemPrompt)
+            .user(request.getQuery())
+            .call()
+            .content();
+      } catch (Exception e) {
+        log.error("GPT-4 call failed: {}", e.getMessage());
+        aiAnswer = "I'm sorry, I couldn't process your question right now. Please try again later.";
+      }
+    } else {
+      aiAnswer = "I'm sorry, the AI assistant is currently unavailable. Please try again later.";
     }
 
     // Save the assistant reply

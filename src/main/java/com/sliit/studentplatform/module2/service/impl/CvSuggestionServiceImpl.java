@@ -7,13 +7,14 @@ import com.sliit.studentplatform.module2.entity.Resume;
 import com.sliit.studentplatform.module2.repository.CvSuggestionRepository;
 import com.sliit.studentplatform.module2.repository.ResumeRepository;
 import com.sliit.studentplatform.module2.service.interfaces.ICvSuggestionService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -24,13 +25,20 @@ import java.util.stream.Collectors;
  * per section (Summary, Experience, Skills, Education).
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class CvSuggestionServiceImpl implements ICvSuggestionService {
 
   private final CvSuggestionRepository cvSuggestionRepository;
   private final ResumeRepository resumeRepository;
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
+
+  public CvSuggestionServiceImpl(CvSuggestionRepository cvSuggestionRepository,
+      ResumeRepository resumeRepository,
+      @Autowired(required = false) ChatClient chatClient) {
+    this.cvSuggestionRepository = cvSuggestionRepository;
+    this.resumeRepository = resumeRepository;
+    this.chatClient = Optional.ofNullable(chatClient);
+  }
 
   @Override
   @Transactional
@@ -51,10 +59,14 @@ public class CvSuggestionServiceImpl implements ICvSuggestionService {
         resumeText.substring(0, Math.min(resumeText.length(), 2000)));
 
     String aiResponse;
-    try {
-      aiResponse = chatClient.prompt().user(prompt).call().content();
-    } catch (Exception e) {
-      log.error("GPT-4 CV suggestion generation failed: {}", e.getMessage());
+    if (chatClient.isPresent()) {
+      try {
+        aiResponse = chatClient.get().prompt().user(prompt).call().content();
+      } catch (Exception e) {
+        log.error("GPT-4 CV suggestion generation failed: {}", e.getMessage());
+        aiResponse = "[]";
+      }
+    } else {
       aiResponse = "[]";
     }
 

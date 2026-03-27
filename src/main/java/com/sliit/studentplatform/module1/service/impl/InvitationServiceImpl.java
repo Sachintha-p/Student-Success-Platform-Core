@@ -46,11 +46,17 @@ public class InvitationServiceImpl implements IInvitationService {
     log.info("Sending invitation for group {} to user {} from {}",
         request.getGroupId(), request.getInviteeId(), inviterId);
 
-    // TODO: verify inviter is the group leader
     ProjectGroup group = groupRepository.findById(request.getGroupId())
         .orElseThrow(() -> new ResourceNotFoundException("ProjectGroup", "id", request.getGroupId()));
-    User inviter = userRepository.findById(inviterId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", inviterId));
+
+    // Verify inviter is a member of the group and is a leader
+    GroupMember inviterMember = memberRepository.findByGroupIdAndUserId(group.getId(), inviterId)
+        .orElseThrow(() -> new UnauthorizedException("You are not a member of this group"));
+    if (!inviterMember.isLeader()) {
+      throw new UnauthorizedException("Only the group leader can send invitations");
+    }
+
+    User inviter = inviterMember.getUser();
     User invitee = userRepository.findById(request.getInviteeId())
         .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getInviteeId()));
 
@@ -116,7 +122,13 @@ public class InvitationServiceImpl implements IInvitationService {
   @Override
   @Transactional(readOnly = true)
   public List<InvitationResponse> getInvitationsByGroup(Long groupId, Long requesterId) {
-    // TODO: verify requesterId is group leader
+    // Verify requester is the group leader
+    GroupMember member = memberRepository.findByGroupIdAndUserId(groupId, requesterId)
+        .orElseThrow(() -> new UnauthorizedException("You are not a member of this group"));
+    if (!member.isLeader()) {
+      throw new UnauthorizedException("Only the group leader can view group invitations");
+    }
+
     return invitationRepository.findByGroupIdAndStatus(groupId, Status.PENDING)
         .stream().map(this::mapToResponse).collect(Collectors.toList());
   }

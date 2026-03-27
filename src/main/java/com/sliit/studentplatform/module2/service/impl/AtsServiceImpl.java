@@ -8,14 +8,15 @@ import com.sliit.studentplatform.module2.repository.AtsAnalysisRepository;
 import com.sliit.studentplatform.module2.repository.JobListingRepository;
 import com.sliit.studentplatform.module2.repository.ResumeRepository;
 import com.sliit.studentplatform.module2.service.interfaces.IAtsService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -26,14 +27,23 @@ import java.util.stream.Collectors;
  * against a job listing's required keywords.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AtsServiceImpl implements IAtsService {
 
   private final AtsAnalysisRepository atsAnalysisRepository;
   private final ResumeRepository resumeRepository;
   private final JobListingRepository jobListingRepository;
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
+
+  public AtsServiceImpl(AtsAnalysisRepository atsAnalysisRepository,
+      ResumeRepository resumeRepository,
+      JobListingRepository jobListingRepository,
+      @Autowired(required = false) ChatClient chatClient) {
+    this.atsAnalysisRepository = atsAnalysisRepository;
+    this.resumeRepository = resumeRepository;
+    this.jobListingRepository = jobListingRepository;
+    this.chatClient = Optional.ofNullable(chatClient);
+  }
 
   @Override
   @Transactional
@@ -78,11 +88,15 @@ public class AtsServiceImpl implements IAtsService {
         resumeText.substring(0, Math.min(resumeText.length(), 500)));
 
     String aiFeedback;
-    try {
-      aiFeedback = chatClient.prompt().user(prompt).call().content();
-    } catch (Exception e) {
-      log.error("AI feedback generation failed: {}", e.getMessage());
-      aiFeedback = "AI feedback unavailable — please try again later.";
+    if (chatClient.isPresent()) {
+      try {
+        aiFeedback = chatClient.get().prompt().user(prompt).call().content();
+      } catch (Exception e) {
+        log.error("AI feedback generation failed: {}", e.getMessage());
+        aiFeedback = "AI feedback unavailable — please try again later.";
+      }
+    } else {
+      aiFeedback = "AI feedback unavailable — AI service not configured.";
     }
 
     AtsAnalysis analysis = AtsAnalysis.builder()

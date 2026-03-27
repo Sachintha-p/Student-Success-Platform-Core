@@ -6,9 +6,9 @@ import com.sliit.studentplatform.module4.entity.StudyResource;
 import com.sliit.studentplatform.module4.repository.BookmarkRepository;
 import com.sliit.studentplatform.module4.repository.StudyResourceRepository;
 import com.sliit.studentplatform.module4.service.interfaces.IResourceService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +16,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ResourceServiceImpl implements IResourceService {
 
   private final StudyResourceRepository resourceRepository;
   private final BookmarkRepository bookmarkRepository;
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
+
+  public ResourceServiceImpl(StudyResourceRepository resourceRepository,
+      BookmarkRepository bookmarkRepository,
+      @Autowired(required = false) ChatClient chatClient) {
+    this.resourceRepository = resourceRepository;
+    this.bookmarkRepository = bookmarkRepository;
+    this.chatClient = Optional.ofNullable(chatClient);
+  }
 
   @Override
   @Transactional(readOnly = true)

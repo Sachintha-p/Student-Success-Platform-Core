@@ -1,24 +1,18 @@
 package com.sliit.studentplatform.module3.service.impl;
 
-import com.sliit.studentplatform.auth.entity.User;
-import com.sliit.studentplatform.auth.repository.UserRepository;
-import com.sliit.studentplatform.common.exception.ConflictException;
 import com.sliit.studentplatform.common.exception.ResourceNotFoundException;
-import com.sliit.studentplatform.common.exception.UnauthorizedException;
-import com.sliit.studentplatform.common.response.PagedResponse;
-import com.sliit.studentplatform.module3.dto.request.CreateEventRequest;
+import com.sliit.studentplatform.module3.dto.request.EventRequest;
 import com.sliit.studentplatform.module3.dto.response.EventResponse;
 import com.sliit.studentplatform.module3.entity.CampusEvent;
-import com.sliit.studentplatform.module3.entity.EventRsvp;
 import com.sliit.studentplatform.module3.repository.CampusEventRepository;
-import com.sliit.studentplatform.module3.repository.EventRsvpRepository;
 import com.sliit.studentplatform.module3.service.interfaces.IEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,96 +20,136 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EventServiceImpl implements IEventService {
 
-  private final CampusEventRepository eventRepository;
-  private final EventRsvpRepository rsvpRepository;
-  private final UserRepository userRepository;
+    private final CampusEventRepository eventRepository;
 
-  @Override
-  @Transactional
-  public EventResponse createEvent(CreateEventRequest request, Long organizerId) {
-    log.info("Creating event '{}' by user: {}", request.getTitle(), organizerId);
-    User organizer = userRepository.findById(organizerId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", organizerId));
-    CampusEvent event = CampusEvent.builder()
-        .title(request.getTitle()).description(request.getDescription())
-        .eventDate(request.getEventDate()).venue(request.getVenue())
-        .online(request.isOnline()).maxAttendees(request.getMaxAttendees())
-        .organizer(organizer).published(false).build();
-    return mapToResponse(eventRepository.save(event), 0);
-  }
+    @Override
+    @Transactional
+    public EventResponse createEvent(EventRequest request) {
+        log.info("Creating event with title: {}, organizerId: {}", request.getTitle(), request.getOrganizerId());
+        try {
+            CampusEvent event = CampusEvent.builder()
+                    .title(request.getTitle())
+                    .description(request.getDescription())
+                    .eventDate(request.getEventDate())
+                    .venue(request.getVenue())
+                    .category(request.getCategory())
+                    .organizerId(request.getOrganizerId())
+                    .maxParticipants(request.getMaxAttendees() != null ? request.getMaxAttendees() : 0)
+                    .isOnline(Boolean.TRUE.equals(request.getIsOnline()))
+                    .isPublished(Boolean.TRUE.equals(request.getIsPublished()))
+                    .build();
+            CampusEvent savedEvent = eventRepository.save(event);
+            log.info("Event saved successfully with id: {}", savedEvent.getId());
+            return mapToResponse(savedEvent);
+        } catch (Exception e) {
+            log.error("Error creating event: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
 
-  @Override
-  @Transactional(readOnly = true)
-  public EventResponse getEventById(Long eventId) {
-    CampusEvent event = getOrThrow(eventId);
-    return mapToResponse(event, rsvpRepository.countByEventId(eventId));
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getAllEvents() {
+        return eventRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
-  @Override
-  @Transactional(readOnly = true)
-  public PagedResponse<EventResponse> listPublishedEvents(Pageable pageable) {
-    return PagedResponse.of(eventRepository.findByPublishedTrue(pageable)
-        .map(e -> mapToResponse(e, rsvpRepository.countByEventId(e.getId()))));
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public EventResponse getEventById(Long id) {
+        return eventRepository.findById(id)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", id));
+    }
 
-  @Override
-  @Transactional
-  public EventResponse updateEvent(Long eventId, CreateEventRequest request, Long userId) {
-    CampusEvent event = getOrThrow(eventId);
-    assertOrganizer(event, userId);
-    event.setTitle(request.getTitle());
-    event.setDescription(request.getDescription());
-    event.setEventDate(request.getEventDate());
-    event.setVenue(request.getVenue());
-    event.setOnline(request.isOnline());
-    event.setMaxAttendees(request.getMaxAttendees());
-    return mapToResponse(eventRepository.save(event), rsvpRepository.countByEventId(eventId));
-  }
+    @Override
+    @Transactional
+    public EventResponse updateEvent(Long id, EventRequest request) {
+        log.info("Updating event id: {}, organizerId: {}", id, request.getOrganizerId());
+        CampusEvent event = eventRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", "id", id));
 
-  @Override
-  @Transactional
-  public void deleteEvent(Long eventId, Long userId) {
-    assertOrganizer(getOrThrow(eventId), userId);
-    eventRepository.deleteById(eventId);
-  }
+        try {
+            event.setTitle(request.getTitle());
+            event.setDescription(request.getDescription());
+            event.setEventDate(request.getEventDate());
+            event.setVenue(request.getVenue());
+            event.setCategory(request.getCategory());
+            event.setOrganizerId(request.getOrganizerId());
+            event.setMaxParticipants(request.getMaxAttendees() != null ? request.getMaxAttendees() : 0);
+            if (request.getIsOnline() != null) event.setIsOnline(request.getIsOnline());
+            if (request.getIsPublished() != null) event.setIsPublished(request.getIsPublished());
 
-  @Override
-  @Transactional
-  public EventResponse rsvpToEvent(Long eventId, Long userId) {
-    CampusEvent event = getOrThrow(eventId);
-    if (rsvpRepository.existsByEventIdAndUserId(eventId, userId))
-      throw new ConflictException("Already RSVPd to this event");
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-    rsvpRepository.save(EventRsvp.builder().event(event).user(user).build());
-    return mapToResponse(event, rsvpRepository.countByEventId(eventId));
-  }
+            CampusEvent savedEvent = eventRepository.save(event);
+            log.info("Event updated successfully with id: {}", savedEvent.getId());
+            return mapToResponse(savedEvent);
+        } catch (Exception e) {
+            log.error("Error updating event: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
 
-  @Override
-  @Transactional
-  public EventResponse cancelRsvp(Long eventId, Long userId) {
-    rsvpRepository.findAll().stream()
-        .filter(r -> r.getEvent().getId().equals(eventId) && r.getUser().getId().equals(userId))
-        .findFirst().ifPresent(rsvpRepository::delete);
-    return getEventById(eventId);
-  }
+    @Override
+    @Transactional
+    public void deleteEvent(Long id) {
+        if (!eventRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Event", "id", id);
+        }
+        eventRepository.deleteById(id);
+    }
 
-  private CampusEvent getOrThrow(Long id) {
-    return eventRepository.findById(id)
-        .orElseThrow(() -> new ResourceNotFoundException("CampusEvent", "id", id));
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getEventsByCategory(String category) {
+        return eventRepository.findByCategory(category).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
-  private void assertOrganizer(CampusEvent e, Long userId) {
-    if (!e.getOrganizer().getId().equals(userId))
-      throw new UnauthorizedException("Only the organizer can modify this event");
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getUpcomingEvents() {
+        return eventRepository.findByEventDateAfter(LocalDateTime.now()).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
-  private EventResponse mapToResponse(CampusEvent e, int rsvpCount) {
-    return EventResponse.builder()
-        .id(e.getId()).title(e.getTitle()).description(e.getDescription())
-        .eventDate(e.getEventDate()).venue(e.getVenue()).online(e.isOnline())
-        .maxAttendees(e.getMaxAttendees()).rsvpCount(rsvpCount)
-        .organizerId(e.getOrganizer().getId()).organizerName(e.getOrganizer().getFullName())
-        .published(e.isPublished()).createdAt(e.getCreatedAt()).build();
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventResponse> getFilteredEvents(String category, boolean upcoming) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CampusEvent> events;
+        
+        if (category != null && upcoming) {
+            events = eventRepository.findByCategoryAndEventDateAfter(category, now);
+        } else if (category != null) {
+            events = eventRepository.findByCategory(category);
+        } else if (upcoming) {
+            events = eventRepository.findByEventDateAfter(now);
+        } else {
+            events = eventRepository.findAll();
+        }
+        
+        return events.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private EventResponse mapToResponse(CampusEvent event) {
+        return EventResponse.builder()
+                .id(event.getId())
+                .title(event.getTitle())
+                .description(event.getDescription())
+                .eventDate(event.getEventDate())
+                .venue(event.getVenue())
+                .category(event.getCategory())
+                .organizerId(event.getOrganizerId())
+                .maxAttendees(event.getMaxParticipants())
+                .isOnline(event.getIsOnline())
+                .isPublished(event.getIsPublished())
+                .createdBy(event.getCreatedBy() != null ? event.getCreatedBy() : "SYSTEM")
+                .createdAt(event.getCreatedAt())
+                .build();
+    }
 }
