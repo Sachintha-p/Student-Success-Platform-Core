@@ -8,17 +8,23 @@ import org.springframework.data.domain.Pageable;
 /** Service contract for project group management (Single Responsibility). */
 public interface ITeamService {
 
-  GroupResponse createGroup(CreateGroupRequest request, Long creatorId);
+    GroupResponse createGroup(CreateGroupRequest request, Long creatorId);
 
-  GroupResponse getGroupById(Long groupId);
+    GroupResponse getGroupById(Long groupId);
 
-  PagedResponse<GroupResponse> listOpenGroups(Pageable pageable);
+    PagedResponse<GroupResponse> listOpenGroups(Pageable pageable);
 
-  PagedResponse<GroupResponse> searchGroups(String keyword, Pageable pageable);
+    PagedResponse<GroupResponse> searchGroups(String keyword, Pageable pageable);
 
-  GroupResponse updateGroup(Long groupId, CreateGroupRequest request, Long currentUserId);
+    GroupResponse updateGroup(Long groupId, CreateGroupRequest request, Long currentUserId);
 
-  void deleteGroup(Long groupId, Long currentUserId);
+    void deleteGroup(Long groupId, Long currentUserId);
 
-  void leaveGroup(Long groupId, Long userId);
+    void leaveGroup(Long groupId, Long userId);
+
+    void joinGroup(Long groupId, Long userId);
+
+    // --- NEW METHOD ADDED FOR 'MY TEAMS' MATCHMAKER FEATURE ---
+    PagedResponse<GroupResponse> getMyGroups(Long userId, Pageable pageable);
+
 }

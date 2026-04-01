@@ -34,6 +34,7 @@ public class ProjectGroup extends AuditableEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+<<<<<<< Updated upstream
     @Column(name = "max_members", nullable = false)
     private int maxMembers;
 
@@ -66,4 +67,37 @@ public class ProjectGroup extends AuditableEntity {
 
     @Column(length = 100)
     private String subject;
+=======
+    /** Maximum number of members allowed in this group. */
+    @Column(name = "max_members", nullable = false)
+    private int maxMembers;
+
+    /** Required skills as a PostgreSQL text array. */
+    @Column(name = "required_skills", columnDefinition = "text[]")
+    private String[] requiredSkills;
+
+    /** The user who created and leads this group. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GroupMember> members = new ArrayList<>();
+
+    @Column(name = "is_open", nullable = false)
+    @Builder.Default
+    private boolean open = true;
+
+    /** Optional module/subject this team is working on. */
+    @Column(length = 100)
+    private String subject;
+
+    // --- NEW FIELDS: Target Year and Semester ---
+    @Column(name = "year_of_study")
+    private Integer yearOfStudy;
+
+    @Column(name = "semester")
+    private Integer semester;
+>>>>>>> Stashed changes
 }
