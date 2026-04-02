@@ -1,17 +1,18 @@
 package com.sliit.studentplatform.module1.service.impl;
 
 import com.sliit.studentplatform.auth.entity.User;
-import com.sliit.studentplatform.auth.repository.StudentRepository;
 import com.sliit.studentplatform.auth.repository.UserRepository;
-import com.sliit.studentplatform.common.exception.ConflictException;
 import com.sliit.studentplatform.common.exception.ResourceNotFoundException;
 import com.sliit.studentplatform.common.exception.UnauthorizedException;
 import com.sliit.studentplatform.common.exception.ValidationException;
 import com.sliit.studentplatform.common.response.PagedResponse;
 import com.sliit.studentplatform.module1.dto.request.CreateGroupRequest;
 import com.sliit.studentplatform.module1.dto.response.GroupResponse;
+import com.sliit.studentplatform.module1.dto.response.JoinRequestResponse;
 import com.sliit.studentplatform.module1.entity.GroupMember;
 import com.sliit.studentplatform.module1.entity.ProjectGroup;
+import com.sliit.studentplatform.module1.entity.GroupJoinRequest;
+import com.sliit.studentplatform.module1.repository.GroupJoinRequestRepository;
 import com.sliit.studentplatform.module1.repository.GroupMemberRepository;
 import com.sliit.studentplatform.module1.repository.ProjectGroupRepository;
 import com.sliit.studentplatform.module1.service.interfaces.ITeamService;
@@ -22,14 +23,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Implementation of {@link ITeamService}.
- *
- * <p>
- * Handles ONLY group management operations (Single Responsibility Principle).
- * Invitations → {@code InvitationServiceImpl}. Matching →
- * {@code MatchingServiceImpl}.
- */
+import com.sliit.studentplatform.module1.entity.GroupInvitation;
+import com.sliit.studentplatform.module1.repository.GroupInvitationRepository;
+import com.sliit.studentplatform.module1.entity.enums.InvitationStatus;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -38,69 +40,47 @@ public class TeamServiceImpl implements ITeamService {
     private final ProjectGroupRepository groupRepository;
     private final GroupMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final GroupInvitationRepository groupInvitationRepository;
+    private final GroupJoinRequestRepository joinRequestRepository;
 
     private static final int MAX_GROUPS_PER_USER = 5;
-
-    // ─────────────────────── Create Group ────────────────────────────────────
 
     @Override
     @Transactional
     public GroupResponse createGroup(CreateGroupRequest request, Long creatorId) {
-        log.info("Creating group '{}' for user id: {}", request.getName(), creatorId);
-
-        // Validate creator exists
-        User creator = userRepository.findById(creatorId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", creatorId));
-
-        // Business rule: a user cannot be in more groups as owner than MAX_GROUPS_PER_USER
-        long ownedGroups = groupRepository.findByOwnerId(creatorId, Pageable.unpaged()).getTotalElements();
-        if (ownedGroups >= MAX_GROUPS_PER_USER) {
-            throw new ValidationException("You cannot own more than " + MAX_GROUPS_PER_USER + " groups");
-        }
-
-        // Build and persist group (NEW: Added Year and Semester)
-        ProjectGroup group = ProjectGroup.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .maxMembers(request.getMaxMembers())
-                .requiredSkills(request.getRequiredSkills())
-                .subject(request.getSubject())
-                .yearOfStudy(request.getYearOfStudy())
-                .semester(request.getSemester())
-                .owner(creator)
-                .open(true)
-                .build();
+        User creator = userRepository.findById(creatorId).orElseThrow(() -> new ResourceNotFoundException("User", "id", creatorId));
+        ProjectGroup group = new ProjectGroup();
+        group.setName(request.getName());
+        group.setDescription(request.getDescription());
+        group.setMaxMembers(request.getMaxMembers());
+        if (request.getRequiredSkills() != null) group.setRequiredSkills(new ArrayList<>(Arrays.asList(request.getRequiredSkills())));
+        group.setSubject(request.getSubject());
+        group.setYearOfStudy(request.getYearOfStudy());
+        group.setSemester(request.getSemester());
+        group.setOwner(creator);
+        group.setOpen(true);
+        if (group.getMembers() == null) group.setMembers(new ArrayList<>());
+        group.getMembers().add(creator);
         group = groupRepository.save(group);
 
-        // Add creator as a leader member
-        GroupMember leaderMembership = GroupMember.builder()
-                .group(group)
-                .user(creator)
-                .leader(true)
-                .build();
+        GroupMember leaderMembership = new GroupMember();
+        leaderMembership.setGroup(group);
+        leaderMembership.setUser(creator);
+        leaderMembership.setLeader(true);
         memberRepository.save(leaderMembership);
-
-        log.info("Group created with id: {}", group.getId());
         return mapToResponse(group, 1);
     }
-
-    // ─────────────────────── Get Group ───────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
     public GroupResponse getGroupById(Long groupId) {
-        log.info("Fetching group id: {}", groupId);
         ProjectGroup group = findGroupOrThrow(groupId);
-        int memberCount = memberRepository.countByGroupId(groupId);
-        return mapToResponse(group, memberCount);
+        return mapToResponse(group, memberRepository.countByGroupId(groupId));
     }
-
-    // ─────────────────────── List & Search ───────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<GroupResponse> listOpenGroups(Pageable pageable) {
-        log.info("Listing open groups, page: {}", pageable.getPageNumber());
         Page<ProjectGroup> page = groupRepository.findByOpenTrue(pageable);
         return PagedResponse.of(page.map(g -> mapToResponse(g, memberRepository.countByGroupId(g.getId()))));
     }
@@ -108,59 +88,176 @@ public class TeamServiceImpl implements ITeamService {
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<GroupResponse> searchGroups(String keyword, Pageable pageable) {
-        log.info("Searching groups with keyword: '{}'", keyword);
         Page<ProjectGroup> page = groupRepository.searchByKeyword(keyword, pageable);
         return PagedResponse.of(page.map(g -> mapToResponse(g, memberRepository.countByGroupId(g.getId()))));
     }
 
-    // ─────────────────────── Update Group ────────────────────────────────────
-
     @Override
     @Transactional
     public GroupResponse updateGroup(Long groupId, CreateGroupRequest request, Long currentUserId) {
-        log.info("Updating group id: {} by user: {}", groupId, currentUserId);
         ProjectGroup group = findGroupOrThrow(groupId);
         assertOwner(group, currentUserId);
-
         group.setName(request.getName());
         group.setDescription(request.getDescription());
         group.setMaxMembers(request.getMaxMembers());
-        group.setRequiredSkills(request.getRequiredSkills());
+        if (request.getRequiredSkills() != null) {
+            if (group.getRequiredSkills() == null) group.setRequiredSkills(new ArrayList<>());
+            group.getRequiredSkills().clear();
+            group.getRequiredSkills().addAll(Arrays.asList(request.getRequiredSkills()));
+        }
         group.setSubject(request.getSubject());
-
-        // NEW: Allow updating year and semester
         group.setYearOfStudy(request.getYearOfStudy());
         group.setSemester(request.getSemester());
-
         group = groupRepository.save(group);
         return mapToResponse(group, memberRepository.countByGroupId(groupId));
     }
 
-    // ─────────────────────── Delete Group ────────────────────────────────────
-
     @Override
     @Transactional
     public void deleteGroup(Long groupId, Long currentUserId) {
-        log.info("Deleting group id: {} by user: {}", groupId, currentUserId);
         ProjectGroup group = findGroupOrThrow(groupId);
         assertOwner(group, currentUserId);
         groupRepository.delete(group);
     }
 
-    // ─────────────────────── Leave Group ─────────────────────────────────────
-
     @Override
     @Transactional
     public void leaveGroup(Long groupId, Long userId) {
-        log.info("User {} leaving group {}", userId, groupId);
         GroupMember membership = memberRepository.findByGroupIdAndUserId(groupId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Membership not found for user " + userId));
-
-        if (membership.isLeader()) {
-            throw new ValidationException(
-                    "Group leader cannot leave the group. Transfer ownership first or delete the group.");
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Membership not found"));
+        if (membership.isLeader()) throw new ValidationException("Group leader cannot leave the group.");
         memberRepository.delete(membership);
+        ProjectGroup group = findGroupOrThrow(groupId);
+        if (group.getMembers() != null) {
+            group.getMembers().removeIf(user -> user.getId().equals(userId));
+            groupRepository.save(group);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void joinGroup(Long groupId, Long userId) {
+        ProjectGroup group = findGroupOrThrow(groupId);
+        User user = userRepository.findById(userId).orElseThrow();
+
+        if (!group.isOpen()) throw new IllegalStateException("This group is closed.");
+
+        if (memberRepository.findByGroupIdAndUserId(groupId, userId).isPresent()) {
+            throw new IllegalStateException("You are already a member of this group.");
+        }
+
+        if (joinRequestRepository.existsByGroupIdAndStudentIdAndStatus(groupId, userId, "PENDING")) {
+            throw new IllegalStateException("You already have a pending join request for this team.");
+        }
+
+        GroupJoinRequest request = new GroupJoinRequest();
+        request.setGroup(group);
+        request.setStudent(user);
+        request.setStatus("PENDING");
+        joinRequestRepository.save(request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<GroupResponse> getMyGroups(Long userId, Pageable pageable) {
+        Page<ProjectGroup> page = groupRepository.findByMembers_Id(userId, pageable);
+        return PagedResponse.of(page.map(g -> mapToResponse(g, memberRepository.countByGroupId(g.getId()))));
+    }
+
+    // =================================================================================
+    // ================== NEW: JOIN REQUEST MANAGEMENT FOR OWNERS ======================
+    // =================================================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JoinRequestResponse> getPendingJoinRequests(Long ownerId) {
+        List<GroupJoinRequest> requests = joinRequestRepository.findByGroupOwnerIdAndStatus(ownerId, "PENDING");
+        return requests.stream().map(req -> JoinRequestResponse.builder()
+                .id(req.getId())
+                .studentName(req.getStudent().getFullName())
+                .teamName(req.getGroup().getName())
+                .studentSkills(new ArrayList<>())
+                .build()).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void acceptJoinRequest(Long requestId, Long ownerId) {
+        GroupJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Join Request", "id", requestId));
+
+        if (!request.getGroup().getOwner().getId().equals(ownerId)) {
+            throw new UnauthorizedException("Only team owners can accept requests.");
+        }
+
+        ProjectGroup group = request.getGroup();
+        int currentMembers = memberRepository.countByGroupId(group.getId());
+        if (currentMembers >= group.getMaxMembers()) {
+            throw new ValidationException("Cannot accept. Team is already full.");
+        }
+
+        GroupMember newMember = new GroupMember();
+        newMember.setGroup(group);
+        newMember.setUser(request.getStudent());
+        newMember.setLeader(false);
+        memberRepository.save(newMember);
+
+        request.setStatus("ACCEPTED");
+        joinRequestRepository.save(request);
+    }
+
+    @Override
+    @Transactional
+    public void declineJoinRequest(Long requestId, Long ownerId) {
+        GroupJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Join Request", "id", requestId));
+
+        if (!request.getGroup().getOwner().getId().equals(ownerId)) {
+            throw new UnauthorizedException("Only team owners can decline requests.");
+        }
+
+        request.setStatus("DECLINED");
+        joinRequestRepository.save(request);
+    }
+
+    // =================================================================================
+    // ============================ EMAIL INVITATION FIX ===============================
+    // =================================================================================
+
+    @Override
+    @Transactional
+    public void inviteUserByEmail(Long groupId, String email) {
+        log.info("Inviting user {} to group {}", email, groupId);
+
+        ProjectGroup group = findGroupOrThrow(groupId);
+        User invitee = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No student found with email: " + email));
+
+        // 1. Check if already a member
+        if (memberRepository.findByGroupIdAndUserId(groupId, invitee.getId()).isPresent()) {
+            throw new ValidationException("Student is already a member of this team.");
+        }
+
+        // 2. Check if team is full
+        int currentMemberCount = memberRepository.countByGroupId(groupId);
+        if (currentMemberCount >= group.getMaxMembers()) {
+            throw new ValidationException("Cannot invite user, this team is already full.");
+        }
+
+        // 3. Fix applied here: Check for duplicates using the updated repository method
+        if (groupInvitationRepository.existsByGroupIdAndInviteeIdAndStatus(groupId, invitee.getId(), InvitationStatus.PENDING)) {
+            throw new ValidationException("An invitation has already been sent to this student.");
+        }
+
+        // 4. Save Invitation
+        GroupInvitation invitation = new GroupInvitation();
+        invitation.setGroup(group);
+        invitation.setInvitee(invitee);
+        invitation.setInviter(group.getOwner());
+        invitation.setStatus(InvitationStatus.PENDING);
+
+        groupInvitationRepository.save(invitation);
+        log.info("Successfully sent invitation to {}", email);
     }
 
     // ─────────────────────── Helpers ─────────────────────────────────────────
@@ -171,7 +268,7 @@ public class TeamServiceImpl implements ITeamService {
     }
 
     private void assertOwner(ProjectGroup group, Long userId) {
-        if (!group.getOwner().getId().equals(userId)) {
+        if (group.getOwner() == null || !group.getOwner().getId().equals(userId)) {
             throw new UnauthorizedException("Only the group owner can perform this action");
         }
     }
@@ -183,63 +280,14 @@ public class TeamServiceImpl implements ITeamService {
                 .description(group.getDescription())
                 .maxMembers(group.getMaxMembers())
                 .currentMembers(memberCount)
-                .requiredSkills(group.getRequiredSkills())
+                .requiredSkills(group.getRequiredSkills() != null ? group.getRequiredSkills().toArray(new String[0]) : new String[0])
                 .subject(group.getSubject())
                 .open(group.isOpen())
-                .ownerId(group.getOwner().getId())
-                .ownerName(group.getOwner().getFullName())
-                .createdAt(group.getCreatedAt())
-                // NEW: Map these back to the response
+                .ownerId(group.getOwner() != null ? group.getOwner().getId() : null)
+                .ownerName(group.getOwner() != null ? group.getOwner().getFullName() : "Unknown")
+                .createdAt(null)
                 .yearOfStudy(group.getYearOfStudy())
                 .semester(group.getSemester())
                 .build();
-    }
-
-    // ─────────────────────── Join Group ──────────────────────────────────────
-
-    @Override
-    @Transactional
-    public void joinGroup(Long groupId, Long userId) {
-        ProjectGroup group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-        if (!group.isOpen()) {
-            throw new IllegalStateException("This group is currently closed to new members.");
-        }
-
-        if (group.getMembers() == null) {
-            group.setMembers(new java.util.ArrayList<>());
-        }
-
-        if (group.getMembers().size() >= group.getMaxMembers()) {
-            throw new IllegalStateException("This group is already full.");
-        }
-
-        boolean alreadyMember = group.getMembers().stream()
-                .anyMatch(member -> member.getUser().getId().equals(userId));
-
-        if (alreadyMember) {
-            throw new IllegalStateException("You are already a member of this group.");
-        }
-
-        GroupMember newMember = GroupMember.builder()
-                .group(group)
-                .user(user)
-                .build();
-
-        group.getMembers().add(newMember);
-        groupRepository.save(group);
-    }
-
-    // ─────────────────────── Get My Groups ─────────────────────────────────────
-    @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<GroupResponse> getMyGroups(Long userId, Pageable pageable) {
-        log.info("Fetching joined groups for user id: {}", userId);
-        Page<ProjectGroup> page = groupRepository.findByMembers_UserId(userId, pageable);
-        return PagedResponse.of(page.map(g -> mapToResponse(g, memberRepository.countByGroupId(g.getId()))));
     }
 }

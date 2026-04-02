@@ -1,103 +1,86 @@
 package com.sliit.studentplatform.module1.entity;
 
-import com.sliit.studentplatform.auth.entity.User;
-import com.sliit.studentplatform.common.audit.AuditableEntity;
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a student project group (team) in the Smart Team Matchmaker module.
- * Merged to include both Team properties and Service-layer requirements.
- */
+import com.sliit.studentplatform.auth.entity.User;
+
 @Entity
 @Table(name = "project_groups")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProjectGroup extends AuditableEntity {
+public class ProjectGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
     private String description;
 
-<<<<<<< Updated upstream
-    @Column(name = "max_members", nullable = false)
-    private int maxMembers;
+    private String subject;
 
-    // --- YOUR ADDED FIELDS (Required for your GroupService) ---
-    @Column(name = "leader_id")
-    private Long leaderId;
+    private Integer maxMembers;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+    private Integer yearOfStudy;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    // ----------------------------------------------------------
+    private Integer semester;
 
-    // --- TEAM'S EXISTING FIELDS ---
-    @Column(name = "required_skills", columnDefinition = "text[]")
-    private String[] requiredSkills;
+    // 🔧 FIX: Added the @Column annotation to handle existing null values in the DB
+    @Column(columnDefinition = "boolean default true")
+    private boolean open = true;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ElementCollection
+    private List<String> requiredSkills = new ArrayList<>();
+
+    @ManyToOne
     @JoinColumn(name = "owner_id")
     private User owner;
 
-    @Builder.Default
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GroupMember> members = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(
+            name = "project_group_members",
+            joinColumns = @JoinColumn(name = "group_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private List<User> members = new ArrayList<>();
 
-    @Column(name = "is_open", nullable = false)
-    @Builder.Default
-    private boolean open = true;
+    // --- CONSTRUCTORS ---
+    public ProjectGroup() {
+    }
 
-    @Column(length = 100)
-    private String subject;
-=======
-    /** Maximum number of members allowed in this group. */
-    @Column(name = "max_members", nullable = false)
-    private int maxMembers;
+    // --- GETTERS AND SETTERS ---
 
-    /** Required skills as a PostgreSQL text array. */
-    @Column(name = "required_skills", columnDefinition = "text[]")
-    private String[] requiredSkills;
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    /** The user who created and leads this group. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    @Builder.Default
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GroupMember> members = new ArrayList<>();
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    @Column(name = "is_open", nullable = false)
-    @Builder.Default
-    private boolean open = true;
+    public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
 
-    /** Optional module/subject this team is working on. */
-    @Column(length = 100)
-    private String subject;
+    public Integer getMaxMembers() { return maxMembers; }
+    public void setMaxMembers(Integer maxMembers) { this.maxMembers = maxMembers; }
 
-    // --- NEW FIELDS: Target Year and Semester ---
-    @Column(name = "year_of_study")
-    private Integer yearOfStudy;
+    public Integer getYearOfStudy() { return yearOfStudy; }
+    public void setYearOfStudy(Integer yearOfStudy) { this.yearOfStudy = yearOfStudy; }
 
-    @Column(name = "semester")
-    private Integer semester;
->>>>>>> Stashed changes
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
+
+    public boolean isOpen() { return open; }
+    public void setOpen(boolean open) { this.open = open; }
+
+    public List<String> getRequiredSkills() { return requiredSkills; }
+    public void setRequiredSkills(List<String> requiredSkills) { this.requiredSkills = requiredSkills; }
+
+    public User getOwner() { return owner; }
+    public void setOwner(User owner) { this.owner = owner; }
+
+    public List<User> getMembers() { return members; }
+    public void setMembers(List<User> members) { this.members = members; }
 }

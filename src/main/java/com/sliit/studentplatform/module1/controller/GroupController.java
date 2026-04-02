@@ -4,7 +4,7 @@ import com.sliit.studentplatform.common.response.ApiResponse;
 import com.sliit.studentplatform.common.security.UserPrincipal;
 import com.sliit.studentplatform.module1.dto.GroupRequest;
 import com.sliit.studentplatform.module1.dto.GroupResponse;
-import com.sliit.studentplatform.module1.service.GroupService;
+import com.sliit.studentplatform.module1.service.impl.GroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

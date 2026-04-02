@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-/** Repository for {@link ProjectGroup} queries. */
+import java.util.List;
+
 @Repository
 public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long> {
 
@@ -24,12 +25,9 @@ public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long
     @Query("SELECT COUNT(m) FROM GroupMember m WHERE m.group.id = :groupId")
     int countMembersInGroup(@Param("groupId") Long groupId);
 
-<<<<<<< Updated upstream
-    // --- YOUR ADDED METHOD (For GroupService CRUD) ---
-    List<ProjectGroup> findByLeaderId(Long leaderId);
-=======
-    // --- NEW METHOD ADDED FOR 'MY TEAMS' MATCHMAKER FEATURE ---
-    Page<ProjectGroup> findByMembers_UserId(Long userId, Pageable pageable);
+    List<ProjectGroup> findByOwnerId(Long ownerId);
 
->>>>>>> Stashed changes
+    // 🔧 FIX: Changed 'findByMembers_UserId' to 'findByMembers_Id' to match the User entity's 'id' field
+    Page<ProjectGroup> findByMembers_Id(Long id, Pageable pageable);
+
 }

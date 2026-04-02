@@ -1,4 +1,4 @@
-package com.sliit.studentplatform.module1.service;
+package com.sliit.studentplatform.module1.service.impl;
 
 import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.auth.repository.UserRepository;
@@ -8,7 +8,6 @@ import com.sliit.studentplatform.module1.entity.ProjectGroup;
 import com.sliit.studentplatform.module1.repository.ProjectGroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -21,21 +20,13 @@ public class GroupService {
         User owner = userRepository.findById(leaderId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        ProjectGroup group = ProjectGroup.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .maxMembers(request.getMaxMembers())
-                .leaderId(leaderId)
-                .owner(owner)
-                .open(true)
-                // MANUALLY SETTING THESE TO FIX THE DATABASE ERROR:
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        // Also set the auditing fields from the parent class
-        group.setCreatedBy(owner.getEmail());
-        group.setUpdatedBy(owner.getEmail());
+        // Use standard instantiation since ProjectGroup doesn't have @Builder
+        ProjectGroup group = new ProjectGroup();
+        group.setName(request.getName());
+        group.setDescription(request.getDescription());
+        group.setMaxMembers(request.getMaxMembers());
+        group.setOwner(owner);
+        group.setOpen(true);
 
         ProjectGroup savedGroup = groupRepository.save(group);
         return mapToResponse(savedGroup);
@@ -45,14 +36,13 @@ public class GroupService {
         ProjectGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
-        if (!group.getLeaderId().equals(requesterId)) {
+        if (group.getOwner() == null || !group.getOwner().getId().equals(requesterId)) {
             throw new RuntimeException("You are not authorized to edit this group");
         }
 
         group.setName(request.getName());
         group.setDescription(request.getDescription());
         group.setMaxMembers(request.getMaxMembers());
-        group.setUpdatedAt(LocalDateTime.now()); // Update the time manually
 
         ProjectGroup updatedGroup = groupRepository.save(group);
         return mapToResponse(updatedGroup);
@@ -62,7 +52,7 @@ public class GroupService {
         ProjectGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
-        if (!group.getLeaderId().equals(requesterId)) {
+        if (group.getOwner() == null || !group.getOwner().getId().equals(requesterId)) {
             throw new RuntimeException("You are not authorized to delete this group");
         }
 
@@ -75,7 +65,7 @@ public class GroupService {
                 .name(group.getName())
                 .description(group.getDescription())
                 .maxMembers(group.getMaxMembers())
-                .leaderId(group.getLeaderId())
+                .leaderId(group.getOwner() != null ? group.getOwner().getId() : null)
                 .build();
     }
 }
