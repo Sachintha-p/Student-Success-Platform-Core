@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-@Slf4j
 public class AiMatchmakerService {
     private final Optional<ChatClient> chatClient;
 
@@ -16,6 +15,9 @@ public class AiMatchmakerService {
         this.chatClient = Optional.ofNullable(chatClient);
     }
 
+    /**
+     * Tests the connection to the OpenAI API to ensure the API key is working.
+     */
     public String testAiConnection() {
         log.info("Testing Spring AI Gemini connection...");
         return chatClient.map(client -> client.prompt()

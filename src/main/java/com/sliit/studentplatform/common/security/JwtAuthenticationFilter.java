@@ -37,22 +37,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   @Override
   protected void doFilterInternal(HttpServletRequest request,
-      HttpServletResponse response,
-      FilterChain filterChain)
-      throws ServletException, IOException {
+                                  HttpServletResponse response,
+                                  FilterChain filterChain)
+          throws ServletException, IOException {
 
     String token = extractToken(request);
 
     if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
       Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+      // Grabs the user from the database, which automatically includes their Role (via UserPrincipal)
       UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
 
+      // RBAC MAGIC: userDetails.getAuthorities() is what hands "ROLE_ADMIN" to Spring Security!
       UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-          userDetails, null, userDetails.getAuthorities());
+              userDetails, null, userDetails.getAuthorities());
       authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
       SecurityContextHolder.getContext().setAuthentication(authentication);
-      log.debug("Successfully authenticated user with id: {}", userId);
+
+      // Added this log so you can easily see the user's role in your terminal during testing
+      log.debug("Successfully authenticated user with id: {} and authorities: {}", userId, userDetails.getAuthorities());
     }
 
     filterChain.doFilter(request, response);

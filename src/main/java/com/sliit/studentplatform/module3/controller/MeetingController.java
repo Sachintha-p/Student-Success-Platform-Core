@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping({"/api/v1/meetings", "/api/module3/meetings"})
 @RequiredArgsConstructor
 @Tag(name = "Meetings")
-public class MeetingController {
+public class  MeetingController {
   private final IMeetingService meetingService;
   private final com.sliit.studentplatform.auth.repository.UserRepository userRepository;
 

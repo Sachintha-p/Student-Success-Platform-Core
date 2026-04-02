@@ -53,7 +53,7 @@ public class JobMatchingServiceImpl implements IJobMatchingService {
     if (student == null || student.getSkills() == null)
       return;
 
-    List<JobListing> activeJobs = jobListingRepository.findByActiveTrue(Pageable.unpaged()).getContent();
+    List<JobListing> activeJobs = jobListingRepository.findByActiveTrueOrderByCreatedAtDesc(Pageable.unpaged()).getContent();
     for (JobListing job : activeJobs) {
       if (job.getRequiredSkills() == null)
         continue;
