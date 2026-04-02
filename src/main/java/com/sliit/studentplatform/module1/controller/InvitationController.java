@@ -2,13 +2,9 @@ package com.sliit.studentplatform.module1.controller;
 
 import com.sliit.studentplatform.common.response.ApiResponse;
 import com.sliit.studentplatform.common.security.UserPrincipal;
-import com.sliit.studentplatform.module1.dto.request.SendInvitationRequest;
 import com.sliit.studentplatform.module1.dto.response.InvitationResponse;
 import com.sliit.studentplatform.module1.service.interfaces.IInvitationService;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,37 +14,33 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/invitations")
 @RequiredArgsConstructor
-@Tag(name = "Team Invitations", description = "Send, accept, and reject team invitations")
 public class InvitationController {
 
-  private final IInvitationService invitationService;
+    private final IInvitationService invitationService;
 
-  @PostMapping
-  public ResponseEntity<ApiResponse<InvitationResponse>> send(
-      @Valid @RequestBody SendInvitationRequest request,
-      @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResponse.success(invitationService.sendInvitation(request, currentUser.getId()), "Invitation sent"));
-  }
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<InvitationResponse>>> getMyPendingInvitations(
+            @AuthenticationPrincipal UserPrincipal currentUser) {
 
-  @PatchMapping("/{id}/accept")
-  public ResponseEntity<ApiResponse<InvitationResponse>> accept(
-      @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity.ok(ApiResponse.success(
-        invitationService.acceptInvitation(id, currentUser.getId()), "Invitation accepted"));
-  }
+        List<InvitationResponse> invites = invitationService.getMyPendingInvitations(currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(invites, "Fetched pending invitations successfully"));
+    }
 
-  @PatchMapping("/{id}/reject")
-  public ResponseEntity<ApiResponse<InvitationResponse>> reject(
-      @PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity.ok(ApiResponse.success(
-        invitationService.rejectInvitation(id, currentUser.getId()), "Invitation rejected"));
-  }
+    @PostMapping("/{id}/accept")
+    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
 
-  @GetMapping("/my")
-  public ResponseEntity<ApiResponse<List<InvitationResponse>>> myPendingInvitations(
-      @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity.ok(ApiResponse.success(
-        invitationService.getPendingInvitationsForUser(currentUser.getId()), "Invitations retrieved"));
-  }
+        invitationService.acceptInvitation(id, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Invitation accepted successfully"));
+    }
+
+    @PostMapping("/{id}/decline")
+    public ResponseEntity<ApiResponse<Void>> declineInvitation(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        invitationService.declineInvitation(id, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Invitation declined successfully"));
+    }
 }
