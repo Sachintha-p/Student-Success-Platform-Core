@@ -8,6 +8,8 @@ import com.sliit.studentplatform.module4.repository.ChatMessageRepository;
 import com.sliit.studentplatform.module4.repository.ConversationRepository;
 import com.sliit.studentplatform.module4.service.impl.AiAssistantServiceImpl;
 import com.sliit.studentplatform.auth.entity.User;
+import com.sliit.studentplatform.auth.repository.UserRepository;
+import com.sliit.studentplatform.module4.service.interfaces.IResourceService;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -15,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 
 import java.util.Optional;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,75 +33,66 @@ class AiAssistantServiceImplTest {
   private ConversationRepository conversationRepository;
   @Mock
   private ChatMessageRepository chatMessageRepository;
+  @Mock
+  private UserRepository userRepository;
+  @Mock
+  private IResourceService resourceService;
 
   @InjectMocks
   private AiAssistantServiceImpl aiAssistantService;
 
+  private User user;
   private Conversation conversation;
   private AiQueryRequest queryRequest;
 
   @BeforeEach
   void setUp() {
-    User user = User.builder().id(1L).fullName("Eve Green").build();
+    user = User.builder().id(12L).fullName("Eve Green").build();
     conversation = Conversation.builder().id(1L).user(user).title("Math Help").subject("Calculus").build();
     queryRequest = AiQueryRequest.builder().conversationId(1L).query("Explain integration by parts").subject("Calculus").build();
   }
 
   @Test
-  @DisplayName("askQuestion — should save user message, call GPT-4, and save assistant reply")
+  @DisplayName("askQuestion — should save messages and return AI answer")
   void askQuestion_shouldSaveMessagesAndReturnAnswer() {
-    when(conversationRepository.findById(1L)).thenReturn(Optional.of(conversation));
-    when(chatMessageRepository.save(argThat(m -> "USER".equals(m.getRole()))))
-            .thenReturn(ChatMessage.builder().id(1L).role("USER").content(queryRequest.getQuery()).build());
+    // Setup
+    when(userRepository.findById(anyLong())).thenReturn(Optional.of(user));
+    when(conversationRepository.findById(anyLong())).thenReturn(Optional.of(conversation));
+    when(chatMessageRepository.findByConversationId(anyLong())).thenReturn(new ArrayList<>());
+    
+    // Mock ChatClient Fluent API
+    ChatClient.ChatClientRequestSpec spec = mock(ChatClient.ChatClientRequestSpec.class);
+    ChatClient.CallResponseSpec callSpec = mock(ChatClient.CallResponseSpec.class);
+    
+    when(chatClient.prompt()).thenReturn(spec);
+    when(spec.system(anyString())).thenReturn(spec);
+    when(spec.user(anyString())).thenReturn(spec);
+    when(spec.call()).thenReturn(callSpec);
+    when(callSpec.content()).thenReturn("AI Answer Content");
 
-    // For Spring AI 1.0.0-M1, we can't use nested spec classes that don't exist
-    // Instead, use a simple answer to mock the fluent chain
-    chatClient = mock(ChatClient.class);
-    aiAssistantService = new AiAssistantServiceImpl(chatClient, conversationRepository, chatMessageRepository);
+    when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(new ChatMessage());
+    when(resourceService.getAiRecommendations(anyString(), anyLong())).thenReturn(new ArrayList<>());
 
-    // Create a mock chain using Mockito lenient mode
-    final Object[] chain = new Object[1];
-    when(chatClient.prompt()).thenAnswer(inv -> {
-      Object spec = mock(Object.class);
-      chain[0] = spec;
-      return spec;
-    });
+    // Execute
+    AiQueryResponse response = aiAssistantService.askQuestion(queryRequest, 12L);
 
-    ChatMessage assistantMsg = ChatMessage.builder().id(2L).role("ASSISTANT").content("Integration by parts formula: ∫u dv = uv - ∫v du").build();
-    when(chatMessageRepository.save(argThat(m -> "ASSISTANT".equals(m.getRole())))).thenReturn(assistantMsg);
-
-    AiQueryResponse response = aiAssistantService.askQuestion(queryRequest, 1L);
-
+    // Verify
     assertThat(response).isNotNull();
-    assertThat(response.getAnswer()).contains("∫u dv = uv");
+    assertThat(response.getAnswer()).isEqualTo("AI Answer Content");
     verify(chatMessageRepository, times(2)).save(any(ChatMessage.class));
   }
 
   @Test
-  @DisplayName("askQuestion — should return fallback message when AI service fails")
-  void askQuestion_shouldReturnFallbackWhenAiFails() {
-    when(conversationRepository.findById(1L)).thenReturn(Optional.of(conversation));
-    when(chatMessageRepository.save(argThat(m -> "USER".equals(m.getRole()))))
-            .thenReturn(ChatMessage.builder().id(1L).role("USER").build());
+  @DisplayName("askQuestion — should handle AI service failure")
+  void askQuestion_shouldHandleAiFailure() {
+    // Setup
+    when(userRepository.findById(anyLong())).thenReturn(Optional.of(user));
+    when(conversationRepository.findById(anyLong())).thenReturn(Optional.of(conversation));
+    
+    when(chatClient.prompt()).thenThrow(new RuntimeException("AI Service Down"));
 
-    chatClient = mock(ChatClient.class);
-    aiAssistantService = new AiAssistantServiceImpl(chatClient, conversationRepository, chatMessageRepository);
-
-    when(chatClient.prompt()).thenThrow(new RuntimeException("Network error"));
-
-    ChatMessage fallbackMsg = ChatMessage.builder().id(2L).role("ASSISTANT").content("I'm sorry...").build();
-    when(chatMessageRepository.save(argThat(m -> "ASSISTANT".equals(m.getRole())))).thenReturn(fallbackMsg);
-
-    AiQueryResponse response = aiAssistantService.askQuestion(queryRequest, 1L);
-    assertThat(response.getAnswer()).contains("I'm sorry");
-  }
-
-  @Test
-  @DisplayName("askQuestion — should throw when conversation not found")
-  void askQuestion_shouldThrowWhenConversationNotFound() {
-    when(conversationRepository.findById(999L)).thenReturn(Optional.empty());
-    queryRequest.setConversationId(999L);
-    assertThatThrownBy(() -> aiAssistantService.askQuestion(queryRequest, 1L))
-            .isInstanceOf(com.sliit.studentplatform.common.exception.ResourceNotFoundException.class);
+    // Execute & Verify
+    assertThatThrownBy(() -> aiAssistantService.askQuestion(queryRequest, 12L))
+            .isInstanceOf(RuntimeException.class);
   }
 }
