@@ -9,4 +9,10 @@ public interface IResourceService {
   ResourceResponse getResourceById(Long id, Long userId);
 
   List<ResourceResponse> getAiRecommendations(String topic, Long userId);
+  
+  ResourceResponse createResource(com.sliit.studentplatform.module4.dto.request.ResourceRequest request);
+  
+  ResourceResponse updateResource(Long id, com.sliit.studentplatform.module4.dto.request.ResourceRequest request);
+  
+  void deleteResource(Long id);
 }

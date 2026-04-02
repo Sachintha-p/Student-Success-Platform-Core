@@ -53,9 +53,56 @@ public class ResourceServiceImpl implements IResourceService {
   @Transactional(readOnly = true)
   public List<ResourceResponse> getAiRecommendations(String topic, Long userId) {
     log.info("Getting AI resource recommendations for topic: {}", topic);
-    // For scaffold: return resources matching the topic as a subject, filtering by
-    // AI-relevance
-    return searchResources(topic, null, userId);
+    
+    List<StudyResource> resources = resourceRepository.findBySubjectContainingIgnoreCase(topic);
+    if (resources.isEmpty()) {
+      resources = resourceRepository.findByTitleContainingIgnoreCase(topic);
+    }
+    if (resources.isEmpty()) {
+      resources = resourceRepository.findByTag(topic);
+    }
+    return resources.stream()
+        .limit(3)
+        .map(r -> mapToResponse(r, userId))
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  @Transactional
+  public ResourceResponse createResource(com.sliit.studentplatform.module4.dto.request.ResourceRequest request) {
+    StudyResource resource = StudyResource.builder()
+        .title(request.getTitle())
+        .url(request.getUrl())
+        .description(request.getDescription())
+        .subject(request.getSubject())
+        .type(request.getType())
+        .tags(request.getTags() != null ? request.getTags().toArray(new String[0]) : new String[0])
+        .build();
+    return mapToResponse(resourceRepository.save(resource), null);
+  }
+
+  @Override
+  @Transactional
+  public ResourceResponse updateResource(Long id, com.sliit.studentplatform.module4.dto.request.ResourceRequest request) {
+    StudyResource resource = resourceRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Resource not found"));
+    resource.setTitle(request.getTitle());
+    resource.setUrl(request.getUrl());
+    resource.setDescription(request.getDescription());
+    resource.setSubject(request.getSubject());
+    resource.setType(request.getType());
+    resource.setTags(request.getTags() != null ? request.getTags().toArray(new String[0]) : new String[0]);
+    return mapToResponse(resourceRepository.save(resource), null);
+  }
+
+  @Override
+  @Transactional
+  public void deleteResource(Long id) {
+    if (!resourceRepository.existsById(id)) {
+      throw new ResourceNotFoundException("StudyResource", "id", id);
+    }
+    bookmarkRepository.deleteByResourceId(id);
+    resourceRepository.deleteById(id);
   }
 
   private ResourceResponse mapToResponse(StudyResource r, Long userId) {
