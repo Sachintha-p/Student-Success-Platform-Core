@@ -1,6 +1,7 @@
 package com.sliit.studentplatform.module4.entity;
 
 import com.sliit.studentplatform.common.audit.AuditableEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,6 +21,7 @@ public class ChatMessage extends AuditableEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "conversation_id", nullable = false)
+  @JsonIgnore
   private Conversation conversation;
 
   /** ROLE: USER | ASSISTANT */
