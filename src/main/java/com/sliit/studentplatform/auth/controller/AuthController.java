@@ -4,12 +4,7 @@ import com.sliit.studentplatform.auth.dto.request.EmailLoginRequest;
 import com.sliit.studentplatform.auth.dto.request.LoginRequest;
 import com.sliit.studentplatform.auth.dto.request.VerifyOtpRequest;
 import com.sliit.studentplatform.auth.dto.response.AuthResponse;
-<<<<<<< feature/Event-managmenr01
-import com.sliit.studentplatform.auth.service.interfaces.IAuthService; // Use Interface, not Impl
-import jakarta.validation.Valid;
-=======
 import com.sliit.studentplatform.auth.service.interfaces.IAuthService;
->>>>>>> dev
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -25,18 +20,13 @@ public class AuthController {
   private final IAuthService authService;
 
   @PostMapping("/login/email")
-  public ResponseEntity<String> requestEmailOtp(@Valid @RequestBody EmailLoginRequest request) {
+  public ResponseEntity<String> requestEmailOtp(@RequestBody EmailLoginRequest request) {
     authService.requestOtp(request.getEmail());
     return ResponseEntity.ok("OTP sent to your SLIIT email.");
   }
 
-<<<<<<< feature/Event-managmenr01
-  @PostMapping("/login/verify")
-  public ResponseEntity<AuthResponse> verifyEmailOtp(@Valid @RequestBody VerifyOtpRequest request) {
-=======
   @PostMapping("/login/verify-otp")
   public ResponseEntity<AuthResponse> verifyEmailOtp(@RequestBody VerifyOtpRequest request) {
->>>>>>> dev
     AuthResponse response = authService.verifyOtp(request.getEmail(), request.getOtp());
     return ResponseEntity.ok(response);
   }
