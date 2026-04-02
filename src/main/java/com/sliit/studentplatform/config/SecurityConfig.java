@@ -38,6 +38,10 @@ public class SecurityConfig {
 
   private static final String[] PUBLIC_ENDPOINTS = {
       "/api/v1/auth/**",
+      "/api/v1/ai-assistant/**",
+      "/api/v1/resources/**",
+      "/api/v1/bookmarks/**",
+      "/api/v1/module4/admin/**",
       "/swagger-ui/**",
       "/swagger-ui.html",
       "/v3/api-docs/**",
@@ -49,10 +53,13 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     return http
         .csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> cors.configure(http)) // CorsConfig provides the CorsConfigurationSource bean
+        .cors(cors -> cors.configure(http))
+        .formLogin(AbstractHttpConfigurer::disable)
+        .httpBasic(AbstractHttpConfigurer::disable)
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+            .requestMatchers("/api/v1/module4/**").permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .anyRequest().authenticated())
         .authenticationProvider(authenticationProvider())
