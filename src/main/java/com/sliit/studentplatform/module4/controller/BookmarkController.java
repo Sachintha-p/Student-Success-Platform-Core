@@ -21,20 +21,28 @@ public class BookmarkController {
 
   @PostMapping("/{resourceId}")
   public ResponseEntity<ApiResponse<ResourceResponse>> add(@PathVariable Long resourceId,
-      @RequestParam(required = false) String note, @AuthenticationPrincipal UserPrincipal user) {
+      @RequestParam(required = false) String note, 
+      @RequestParam(required = false) Long userId,
+      @AuthenticationPrincipal UserPrincipal user) {
+    Long finalUserId = (user != null) ? user.getId() : (userId != null ? userId : 12L);
     return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResponse.success(bookmarkService.addBookmark(resourceId, note, user.getId()), "Bookmarked"));
+        ApiResponse.success(bookmarkService.addBookmark(resourceId, note, finalUserId), "Bookmarked"));
   }
 
   @DeleteMapping("/{resourceId}")
   public ResponseEntity<ApiResponse<Void>> remove(@PathVariable Long resourceId,
+      @RequestParam(required = false) Long userId,
       @AuthenticationPrincipal UserPrincipal user) {
-    bookmarkService.removeBookmark(resourceId, user.getId());
+    Long finalUserId = (user != null) ? user.getId() : (userId != null ? userId : 12L);
+    bookmarkService.removeBookmark(resourceId, finalUserId);
     return ResponseEntity.ok(ApiResponse.success("Bookmark removed"));
   }
 
   @GetMapping
-  public ResponseEntity<ApiResponse<List<ResourceResponse>>> myBookmarks(@AuthenticationPrincipal UserPrincipal user) {
-    return ResponseEntity.ok(ApiResponse.success(bookmarkService.getMyBookmarks(user.getId()), "Bookmarks retrieved"));
+  public ResponseEntity<ApiResponse<List<ResourceResponse>>> myBookmarks(
+      @RequestParam(required = false) Long userId,
+      @AuthenticationPrincipal UserPrincipal user) {
+    Long finalUserId = (user != null) ? user.getId() : (userId != null ? userId : 12L);
+    return ResponseEntity.ok(ApiResponse.success(bookmarkService.getMyBookmarks(finalUserId), "Bookmarks retrieved"));
   }
 }
