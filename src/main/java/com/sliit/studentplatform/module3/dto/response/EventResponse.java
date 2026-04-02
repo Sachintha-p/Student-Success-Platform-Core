@@ -13,11 +13,11 @@ public class EventResponse {
   private String description;
   private LocalDateTime eventDate;
   private String venue;
-  private boolean online;
-  private Integer maxAttendees;
-  private int rsvpCount;
+  private String category;
   private Long organizerId;
-  private String organizerName;
-  private boolean published;
+  private Integer maxAttendees;
+  private Boolean isOnline;
+  private Boolean isPublished;
+  private String createdBy;
   private LocalDateTime createdAt;
 }

@@ -4,21 +4,35 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sliit.studentplatform.module2.entity.AtsAnalysis;
 import com.sliit.studentplatform.module2.repository.AtsAnalysisRepository;
 import com.sliit.studentplatform.module2.service.interfaces.IAtsService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.ai.openai.OpenAiChatModel;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class AtsServiceImpl implements IAtsService {
 
   private final OpenAiChatModel chatModel;
   private final ObjectMapper objectMapper;
   private final AtsAnalysisRepository atsAnalysisRepository;
+  private final ResumeRepository resumeRepository;
+  private final JobListingRepository jobListingRepository;
+  private final Optional<ChatClient> chatClient;
+
+  public AtsServiceImpl(AtsAnalysisRepository atsAnalysisRepository,
+      ResumeRepository resumeRepository,
+      JobListingRepository jobListingRepository,
+      @Autowired(required = false) ChatClient chatClient) {
+    this.atsAnalysisRepository = atsAnalysisRepository;
+    this.resumeRepository = resumeRepository;
+    this.jobListingRepository = jobListingRepository;
+    this.chatClient = Optional.ofNullable(chatClient);
+  }
 
   @Override
   public Map<String, Object> analyzeResume(String resumeText, Long resumeId) {
@@ -47,11 +61,16 @@ public class AtsServiceImpl implements IAtsService {
       atsAnalysisRepository.save(analysis);
       return results;
 
-    } catch (Exception e) {
-      e.printStackTrace();
-      Map<String, Object> errorMap = new HashMap<>();
-      errorMap.put("error", "AI Scan failed: " + e.getMessage());
-      return errorMap;
+    String aiFeedback;
+    if (chatClient.isPresent()) {
+      try {
+        aiFeedback = chatClient.get().prompt().user(prompt).call().content();
+      } catch (Exception e) {
+        log.error("AI feedback generation failed: {}", e.getMessage());
+        aiFeedback = "AI feedback unavailable — please try again later.";
+      }
+    } else {
+      aiFeedback = "AI feedback unavailable — AI service not configured.";
     }
   }
 
