@@ -12,8 +12,10 @@ import lombok.NoArgsConstructor;
 public class UpdateStudentProfileRequest {
 
     private String fullName;
+    private String registrationNumber;
     private String degreeProgramme;
     private Integer yearOfStudy;
+    private Double gpa;
     private Integer semester;
     private String bio;
     private String[] skills;

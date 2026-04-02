@@ -58,6 +58,8 @@ public class StudentServiceImpl implements IStudentService {
         // 3. Update the specific student fields
         student.setDegreeProgramme(request.getDegreeProgramme());
         student.setYearOfStudy(request.getYearOfStudy());
+        student.setRegistrationNumber(request.getRegistrationNumber()); // <-- ADDED THIS
+        student.setGpa(request.getGpa());
         student.setSemester(request.getSemester());
         student.setBio(request.getBio());
         student.setSkills(request.getSkills());
