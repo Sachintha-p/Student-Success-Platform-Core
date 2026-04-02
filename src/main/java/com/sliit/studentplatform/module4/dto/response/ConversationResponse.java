@@ -14,4 +14,5 @@ public class ConversationResponse {
   private String subject;
   private boolean active;
   private LocalDateTime createdAt;
+
 }
