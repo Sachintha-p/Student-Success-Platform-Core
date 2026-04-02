@@ -8,7 +8,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface JobListingRepository extends JpaRepository<JobListing, Long> {
-  Page<JobListing> findByActiveTrue(Pageable pageable);
+  // NEW: Fetches active jobs and sorts them so newest ones appear first
+  Page<JobListing> findByActiveTrueOrderByCreatedAtDesc(Pageable pageable);
 
   Page<JobListing> findByPostedById(Long userId, Pageable pageable);
 }
