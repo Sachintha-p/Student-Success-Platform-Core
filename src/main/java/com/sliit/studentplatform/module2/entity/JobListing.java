@@ -1,14 +1,13 @@
 package com.sliit.studentplatform.module2.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.common.audit.AuditableEntity;
 import com.sliit.studentplatform.common.enums.Priority;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDate;
 
-/** A job or internship listing posted by a recruiter or lecturer. */
 @Entity
 @Table(name = "job_listings")
 @Getter
@@ -31,11 +30,12 @@ public class JobListing extends AuditableEntity {
   @Column(columnDefinition = "TEXT")
   private String description;
 
+  // FIX: Renamed from required_skills to requiredSkills for proper Lombok support
   @Column(name = "required_skills", columnDefinition = "text[]")
   private String[] requiredSkills;
 
   @Column(length = 50)
-  private String type; // FULL_TIME | PART_TIME | INTERNSHIP
+  private String type;
 
   @Column(length = 150)
   private String location;
@@ -51,6 +51,7 @@ public class JobListing extends AuditableEntity {
   @Builder.Default
   private Priority priority = Priority.MEDIUM;
 
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "posted_by", nullable = false)
   private User postedBy;
