@@ -20,7 +20,7 @@ import java.util.List;
 
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"})
 @RestController
-@RequestMapping("/api/v1/events")
+@RequestMapping({"/api/v1/events", "/api/module3/events"})
 @RequiredArgsConstructor
 @Tag(name = "Event Management")
 public class EventController {
@@ -56,6 +56,11 @@ public class EventController {
             @RequestParam(required = false, defaultValue = "false") boolean upcoming) {
         List<EventResponse> events = eventService.getFilteredEvents(category, upcoming);
         return ResponseEntity.ok(ApiResponse.success(events, "Events retrieved successfully"));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getAllEvents() {
+        return ResponseEntity.ok(ApiResponse.success(eventService.getAllEvents(), "All events retrieved"));
     }
 
     @GetMapping("/{id}")

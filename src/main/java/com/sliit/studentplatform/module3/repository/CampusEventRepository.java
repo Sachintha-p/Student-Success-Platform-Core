@@ -14,4 +14,6 @@ public interface CampusEventRepository extends JpaRepository<CampusEvent, Long> 
     List<CampusEvent> findByEventDateAfter(LocalDateTime now);
 
     List<CampusEvent> findByCategoryAndEventDateAfter(String category, LocalDateTime now);
+
+    List<CampusEvent> findAllByOrderByCreatedAtDesc();
 }

@@ -50,7 +50,7 @@ public class EventServiceImpl implements IEventService {
     @Override
     @Transactional(readOnly = true)
     public List<EventResponse> getAllEvents() {
-        return eventRepository.findAll().stream()
+        return eventRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
