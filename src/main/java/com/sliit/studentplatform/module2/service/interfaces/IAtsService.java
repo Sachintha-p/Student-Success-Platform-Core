@@ -1,10 +1,12 @@
 package com.sliit.studentplatform.module2.service.interfaces;
 
-import com.sliit.studentplatform.module2.dto.response.AtsScoreResponse;
+import com.sliit.studentplatform.module2.entity.AtsAnalysis;
 import java.util.List;
+import java.util.Map;
 
 public interface IAtsService {
-  AtsScoreResponse analyzeResume(Long resumeId, Long jobListingId, Long userId);
+  Map<String, Object> analyzeResume(String resumeText, Long resumeId);
 
-  List<AtsScoreResponse> getAnalysisHistory(Long userId);
+  // FIX: Add this method for the test
+  List<AtsAnalysis> getAnalysisHistory(Long resumeId);
 }

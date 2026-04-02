@@ -1,5 +1,6 @@
 package com.sliit.studentplatform.module2.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.common.audit.AuditableEntity;
 import com.sliit.studentplatform.common.enums.Priority;
@@ -51,6 +52,8 @@ public class JobListing extends AuditableEntity {
   @Builder.Default
   private Priority priority = Priority.MEDIUM;
 
+  // ---> THE MAGIC FIX IS HERE <---
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "posted_by", nullable = false)
   private User postedBy;
