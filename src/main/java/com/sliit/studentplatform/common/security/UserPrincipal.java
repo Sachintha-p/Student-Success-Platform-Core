@@ -37,16 +37,19 @@ public class UserPrincipal implements UserDetails {
    * @return populated {@link UserPrincipal}
    */
   public static UserPrincipal create(User user) {
+    // CRITICAL RBAC LOGIC:
+    // This takes the database role (e.g., "ADMIN") and adds "ROLE_" to it (e.g., "ROLE_ADMIN").
+    // This perfectly matches the .hasRole("ADMIN") rule we put in your SecurityConfig!
     List<GrantedAuthority> authorities = List.of(
-        new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+            new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
 
     return UserPrincipal.builder()
-        .id(user.getId())
-        .email(user.getEmail())
-        .password(user.getPassword())
-        .authorities(authorities)
-        .enabled(user.isEnabled())
-        .build();
+            .id(user.getId())
+            .email(user.getEmail())
+            .password(user.getPassword())
+            .authorities(authorities)
+            .enabled(user.isEnabled())
+            .build();
   }
 
   @Override

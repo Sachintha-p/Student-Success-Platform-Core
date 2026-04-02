@@ -8,11 +8,14 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utility component for generating and validating JWT tokens.
@@ -38,8 +41,13 @@ public class JwtTokenProvider {
    */
   public String generateAccessToken(Authentication authentication) {
     UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-    return buildToken(userPrincipal.getId(), userPrincipal.getEmail(),
-        jwtConfig.getExpiration());
+
+    // Extract roles from UserPrincipal to include in the token
+    List<String> roles = userPrincipal.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .collect(Collectors.toList());
+
+    return buildToken(userPrincipal.getId(), userPrincipal.getEmail(), roles, jwtConfig.getExpiration());
   }
 
   /**
@@ -49,7 +57,7 @@ public class JwtTokenProvider {
    * @return signed JWT refresh token string
    */
   public String generateRefreshToken(Long userId) {
-    return buildToken(userId, null, jwtConfig.getRefreshExpiration());
+    return buildToken(userId, null, null, jwtConfig.getRefreshExpiration());
   }
 
   // ─────────────────────── Token Parsing ───────────────────────────────────
@@ -85,18 +93,23 @@ public class JwtTokenProvider {
 
   // ─────────────────────── Private Helpers ─────────────────────────────────
 
-  private String buildToken(Long userId, String email, long expiryMs) {
+  private String buildToken(Long userId, String email, List<String> roles, long expiryMs) {
     Date now = new Date();
     Date expiry = new Date(now.getTime() + expiryMs);
 
     var builder = Jwts.builder()
-        .subject(String.valueOf(userId))
-        .issuedAt(now)
-        .expiration(expiry)
-        .signWith(signingKey());
+            .subject(String.valueOf(userId))
+            .issuedAt(now)
+            .expiration(expiry)
+            .signWith(signingKey());
 
     if (email != null) {
       builder.claim("email", email);
+    }
+
+    // Add roles to the JWT payload if they exist
+    if (roles != null && !roles.isEmpty()) {
+      builder.claim("roles", roles);
     }
 
     return builder.compact();
@@ -104,10 +117,10 @@ public class JwtTokenProvider {
 
   private Claims parseClaims(String token) {
     return Jwts.parser()
-        .verifyWith(signingKey())
-        .build()
-        .parseSignedClaims(token)
-        .getPayload();
+            .verifyWith(signingKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
   }
 
   private SecretKey signingKey() {

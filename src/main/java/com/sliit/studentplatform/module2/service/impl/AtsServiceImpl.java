@@ -1,126 +1,74 @@
 package com.sliit.studentplatform.module2.service.impl;
 
-import com.sliit.studentplatform.common.exception.ResourceNotFoundException;
-import com.sliit.studentplatform.module2.dto.response.AtsScoreResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sliit.studentplatform.module2.entity.AtsAnalysis;
-import com.sliit.studentplatform.module2.entity.Resume;
 import com.sliit.studentplatform.module2.repository.AtsAnalysisRepository;
-import com.sliit.studentplatform.module2.repository.JobListingRepository;
-import com.sliit.studentplatform.module2.repository.ResumeRepository;
 import com.sliit.studentplatform.module2.service.interfaces.IAtsService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
 
-/**
- * Implementation of {@link IAtsService}.
- *
- * <p>
- * Uses Spring AI (GPT-4) to parse the CV text and compute an ATS score
- * against a job listing's required keywords.
- */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AtsServiceImpl implements IAtsService {
 
+  private final OpenAiChatModel chatModel;
+  private final ObjectMapper objectMapper;
   private final AtsAnalysisRepository atsAnalysisRepository;
-  private final ResumeRepository resumeRepository;
-  private final JobListingRepository jobListingRepository;
-  private final ChatClient chatClient;
 
   @Override
-  @Transactional
-  public AtsScoreResponse analyzeResume(Long resumeId, Long jobListingId, Long userId) {
-    log.info("Running ATS analysis: resume={}, job={}", resumeId, jobListingId);
+  public Map<String, Object> analyzeResume(String resumeText, Long resumeId) {
+    String prompt = "Act as a professional ATS. Analyze the following resume text and provide analysis in JSON format ONLY. " +
+            "Do not include any explanation. JSON structure: { \"atsScore\": int, \"matchedKeywords\": [], \"missingKeywords\": [], \"weakPoints\": [], \"improvements\": [] } " +
+            "Resume Text: " + resumeText;
 
-    Resume resume = resumeRepository.findById(resumeId)
-        .orElseThrow(() -> new ResourceNotFoundException("Resume", "id", resumeId));
-
-    var jobListing = jobListingRepository.findById(jobListingId)
-        .orElseThrow(() -> new ResourceNotFoundException("JobListing", "id", jobListingId));
-
-    String[] requiredKeywords = jobListing.getRequiredSkills() != null
-        ? jobListing.getRequiredSkills()
-        : new String[0];
-
-    // TODO: integrate full text extraction from resume file in prod
-    String resumeText = resume.getExtractedText() != null ? resume.getExtractedText() : "";
-
-    // Simple keyword intersection matching
-    String normalizedText = resumeText.toLowerCase();
-    List<String> matched = Arrays.stream(requiredKeywords)
-        .filter(k -> normalizedText.contains(k.toLowerCase()))
-        .collect(Collectors.toList());
-    List<String> missing = Arrays.stream(requiredKeywords)
-        .filter(k -> !normalizedText.contains(k.toLowerCase()))
-        .collect(Collectors.toList());
-
-    double score = requiredKeywords.length == 0 ? 100.0
-        : ((double) matched.size() / requiredKeywords.length) * 100;
-
-    // Build GPT-4 prompt for qualitative feedback
-    String prompt = String.format(
-        "You are an ATS expert. Analyse this CV text against the job requirements and give concise improvement feedback.\n"
-            +
-            "Job required skills: %s\n" +
-            "Missing skills: %s\n" +
-            "CV text (excerpt): %s\n" +
-            "Provide 3 specific, actionable recommendations.",
-        String.join(", ", requiredKeywords),
-        String.join(", ", missing),
-        resumeText.substring(0, Math.min(resumeText.length(), 500)));
-
-    String aiFeedback;
     try {
-      aiFeedback = chatClient.prompt().user(prompt).call().content();
+      // 1. Call OpenAI
+      String aiRawResponse = chatModel.call(prompt);
+
+      // 2. CLEAN JSON (Fixes the code 96 / backtick error)
+      String cleanedJson = cleanAiJson(aiRawResponse);
+
+      // 3. Parse to Map
+      Map<String, Object> results = objectMapper.readValue(cleanedJson, Map.class);
+
+      // 4. Save to Database
+      AtsAnalysis analysis = AtsAnalysis.builder()
+              .resumeId(resumeId)
+              .atsScore(results.get("atsScore") instanceof Number ? ((Number) results.get("atsScore")).intValue() : 0)
+              .weakPoints(results.get("weakPoints").toString())
+              .improvements(results.get("improvements").toString())
+              .build();
+
+      atsAnalysisRepository.save(analysis);
+      return results;
+
     } catch (Exception e) {
-      log.error("AI feedback generation failed: {}", e.getMessage());
-      aiFeedback = "AI feedback unavailable — please try again later.";
+      e.printStackTrace();
+      Map<String, Object> errorMap = new HashMap<>();
+      errorMap.put("error", "AI Scan failed: " + e.getMessage());
+      return errorMap;
     }
-
-    AtsAnalysis analysis = AtsAnalysis.builder()
-        .resume(resume)
-        .jobListing(jobListing)
-        .atsScore(Math.round(score * 10.0) / 10.0)
-        .keywordMatches(matched.toArray(new String[0]))
-        .missingKeywords(missing.toArray(new String[0]))
-        .aiFeedback(aiFeedback)
-        .build();
-
-    analysis = atsAnalysisRepository.save(analysis);
-
-    return AtsScoreResponse.builder()
-        .analysisId(analysis.getId())
-        .resumeId(resumeId)
-        .jobListingId(jobListingId)
-        .atsScore(analysis.getAtsScore())
-        .keywordMatches(analysis.getKeywordMatches())
-        .missingKeywords(analysis.getMissingKeywords())
-        .aiFeedback(analysis.getAiFeedback())
-        .build();
   }
 
   @Override
-  @Transactional(readOnly = true)
-  public List<AtsScoreResponse> getAnalysisHistory(Long userId) {
-    log.info("Fetching ATS analysis history for user: {}", userId);
-    return atsAnalysisRepository.findByResumeUserIdOrderByCreatedAtDesc(userId).stream()
-        .map(a -> AtsScoreResponse.builder()
-            .analysisId(a.getId())
-            .resumeId(a.getResume().getId())
-            .jobListingId(a.getJobListing() != null ? a.getJobListing().getId() : null)
-            .atsScore(a.getAtsScore())
-            .keywordMatches(a.getKeywordMatches())
-            .missingKeywords(a.getMissingKeywords())
-            .aiFeedback(a.getAiFeedback())
-            .build())
-        .collect(Collectors.toList());
+  public List<AtsAnalysis> getAnalysisHistory(Long resumeId) {
+    return atsAnalysisRepository.findByResumeIdOrderByCreatedAtDesc(resumeId);
+  }
+
+  /**
+   * Helper to remove Markdown formatting like ```json ... ```
+   */
+  private String cleanAiJson(String raw) {
+    if (raw == null) return "{}";
+    String cleaned = raw.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replaceAll("^```[a-z]*\\n", "").replaceAll("\\n```$", "");
+    }
+    return cleaned.trim();
   }
 }
