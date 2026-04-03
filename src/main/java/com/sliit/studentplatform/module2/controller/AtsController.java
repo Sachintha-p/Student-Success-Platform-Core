@@ -1,38 +1,41 @@
 package com.sliit.studentplatform.module2.controller;
 
+import com.sliit.studentplatform.module2.service.interfaces.PdfExtractionService;
 import com.sliit.studentplatform.common.response.ApiResponse;
-import com.sliit.studentplatform.common.security.UserPrincipal;
-import com.sliit.studentplatform.module2.dto.response.AtsScoreResponse;
-import com.sliit.studentplatform.module2.service.interfaces.IAtsService;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/ats")
-@RequiredArgsConstructor
-@Tag(name = "ATS Analysis", description = "AI-powered CV ATS scoring against job listings")
 public class AtsController {
 
-  private final IAtsService atsService;
+  private final PdfExtractionService pdfExtractionService;
 
-  @PostMapping("/analyze")
-  public ResponseEntity<ApiResponse<AtsScoreResponse>> analyze(
-      @RequestParam Long resumeId,
-      @RequestParam Long jobListingId,
-      @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity.ok(ApiResponse.success(
-        atsService.analyzeResume(resumeId, jobListingId, currentUser.getId()), "ATS analysis complete"));
+  // Constructor Injection (Recommended)
+  public AtsController(PdfExtractionService pdfExtractionService) {
+    this.pdfExtractionService = pdfExtractionService;
   }
 
-  @GetMapping("/history")
-  public ResponseEntity<ApiResponse<List<AtsScoreResponse>>> history(
-      @AuthenticationPrincipal UserPrincipal currentUser) {
-    return ResponseEntity
-        .ok(ApiResponse.success(atsService.getAnalysisHistory(currentUser.getId()), "Analysis history"));
+  @PostMapping("/match-cv")
+  public ResponseEntity<ApiResponse<String>> processCvUpload(
+          @RequestParam("cv") MultipartFile cvFile) {
+
+    try {
+      // Changed from extractTextFromPDF to extractTextFromPdf to match your Service
+      String extractedText = pdfExtractionService.extractTextFromPdf(cvFile);
+
+      // Verify extraction in console
+      System.out.println("Extracted CV Text:\n" + extractedText);
+
+      return ResponseEntity.ok(ApiResponse.success(extractedText, "PDF Parsed Successfully"));
+
+    } catch (IOException e) {
+      // Log the error and return a failure response
+      return ResponseEntity.internalServerError()
+              .body(ApiResponse.error("Failed to parse the PDF document: " + e.getMessage()));
+    }
   }
 }

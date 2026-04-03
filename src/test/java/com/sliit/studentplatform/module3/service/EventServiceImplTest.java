@@ -1,15 +1,10 @@
 package com.sliit.studentplatform.module3.service;
 
-import com.sliit.studentplatform.auth.entity.User;
-import com.sliit.studentplatform.auth.repository.UserRepository;
-import com.sliit.studentplatform.common.exception.ConflictException;
-import com.sliit.studentplatform.common.response.PagedResponse;
-import com.sliit.studentplatform.module3.dto.request.CreateEventRequest;
+import com.sliit.studentplatform.common.exception.ResourceNotFoundException;
+import com.sliit.studentplatform.module3.dto.request.EventRequest;
 import com.sliit.studentplatform.module3.dto.response.EventResponse;
 import com.sliit.studentplatform.module3.entity.CampusEvent;
-import com.sliit.studentplatform.module3.entity.EventRsvp;
 import com.sliit.studentplatform.module3.repository.CampusEventRepository;
-import com.sliit.studentplatform.module3.repository.EventRsvpRepository;
 import com.sliit.studentplatform.module3.service.impl.EventServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,105 +13,146 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link EventServiceImpl}.
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("EventServiceImpl Unit Tests")
 class EventServiceImplTest {
 
-  @Mock
-  private CampusEventRepository eventRepository;
-  @Mock
-  private EventRsvpRepository rsvpRepository;
-  @Mock
-  private UserRepository userRepository;
+    @Mock
+    private CampusEventRepository eventRepository;
 
-  @InjectMocks
-  private EventServiceImpl eventService;
+    @InjectMocks
+    private EventServiceImpl eventService;
 
-  private User organizer;
-  private CampusEvent event;
+    private CampusEvent event;
+    private EventRequest eventRequest;
 
-  @BeforeEach
-  void setUp() {
-    organizer = User.builder().id(1L).fullName("Carol White").email("carol@sliit.lk").build();
+    @BeforeEach
+    void setUp() {
+        event = CampusEvent.builder()
+                .id(1L)
+                .title("Tech Talk")
+                .description("AI Trends")
+                .eventDate(LocalDateTime.now().plusDays(1))
+                .venue("Hall A")
+                .category("Technology")
+                .organizerId(101L)
+                .maxParticipants(100)
+                .isOnline(false)
+                .isPublished(true)
+                .build();
 
-    event = CampusEvent.builder()
-        .id(5L).title("Spring Boot Workshop").organizer(organizer)
-        .eventDate(LocalDateTime.now().plusDays(7)).maxAttendees(50)
-        .published(true).build();
-  }
+        eventRequest = EventRequest.builder()
+                .title("Tech Talk")
+                .description("AI Trends")
+                .eventDate(LocalDateTime.now().plusDays(1))
+                .venue("Hall A")
+                .category("Technology")
+                .organizerId(101L)
+                .maxAttendees(100)
+                .isOnline(false)
+                .isPublished(true)
+                .build();
+    }
 
-  @Test
-  @DisplayName("createEvent — should persist event with published=false by default")
-  void createEvent_shouldPersistEventUnpublished() {
-    CreateEventRequest req = CreateEventRequest.builder()
-        .title("Spring Boot Workshop").eventDate(LocalDateTime.now().plusDays(10))
-        .venue("Lab 301").maxAttendees(50).build();
+    @Test
+    @DisplayName("createEvent - should save and return event response")
+    void createEvent_shouldSaveAndReturnResponse() {
+        when(eventRepository.save(any(CampusEvent.class))).thenReturn(event);
 
-    when(userRepository.findById(1L)).thenReturn(Optional.of(organizer));
-    when(eventRepository.save(any(CampusEvent.class))).thenReturn(event);
-    when(rsvpRepository.countByEventId(5L)).thenReturn(0);
+        EventResponse response = eventService.createEvent(eventRequest);
 
-    EventResponse response = eventService.createEvent(req, 1L);
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getTitle()).isEqualTo("Tech Talk");
+        verify(eventRepository, times(1)).save(any(CampusEvent.class));
+    }
 
-    assertThat(response).isNotNull();
-    assertThat(response.getId()).isEqualTo(5L);
-    assertThat(response.getTitle()).isEqualTo("Spring Boot Workshop");
-    verify(eventRepository, times(1)).save(any(CampusEvent.class));
-  }
+    @Test
+    @DisplayName("getAllEvents - should return list of event responses")
+    void getAllEvents_shouldReturnList() {
+        when(eventRepository.findAll()).thenReturn(Collections.singletonList(event));
 
-  @Test
-  @DisplayName("rsvpToEvent — should add RSVP when not already registered")
-  void rsvpToEvent_shouldAddRsvpSuccessfully() {
-    when(eventRepository.findById(5L)).thenReturn(Optional.of(event));
-    when(rsvpRepository.existsByEventIdAndUserId(5L, 2L)).thenReturn(false);
-    User user = User.builder().id(2L).fullName("David Lee").build();
-    when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-    when(rsvpRepository.save(any(EventRsvp.class))).thenReturn(new EventRsvp());
-    when(rsvpRepository.countByEventId(5L)).thenReturn(1);
+        List<EventResponse> responses = eventService.getAllEvents();
 
-    EventResponse response = eventService.rsvpToEvent(5L, 2L);
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getTitle()).isEqualTo("Tech Talk");
+        verify(eventRepository, times(1)).findAll();
+    }
 
-    assertThat(response.getRsvpCount()).isEqualTo(1);
-    verify(rsvpRepository, times(1)).save(any(EventRsvp.class));
-  }
+    @Test
+    @DisplayName("getEventById - should return event response when id exists")
+    void getEventById_shouldReturnResponse() {
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
 
-  @Test
-  @DisplayName("rsvpToEvent — should throw ConflictException when already RSVPd")
-  void rsvpToEvent_shouldThrowConflictWhenAlreadyRsvpd() {
-    when(eventRepository.findById(5L)).thenReturn(Optional.of(event));
-    when(rsvpRepository.existsByEventIdAndUserId(5L, 1L)).thenReturn(true);
+        EventResponse response = eventService.getEventById(1L);
 
-    assertThatThrownBy(() -> eventService.rsvpToEvent(5L, 1L))
-        .isInstanceOf(ConflictException.class)
-        .hasMessageContaining("Already RSVPd");
-  }
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(1L);
+        verify(eventRepository, times(1)).findById(1L);
+    }
 
-  @Test
-  @DisplayName("listPublishedEvents — should return paged events")
-  void listPublishedEvents_shouldReturnPagedResult() {
-    when(eventRepository.findByPublishedTrue(any(Pageable.class)))
-        .thenReturn(new PageImpl<>(Collections.singletonList(event)));
-    when(rsvpRepository.countByEventId(5L)).thenReturn(3);
+    @Test
+    @DisplayName("getEventById - should throw ResourceNotFoundException when id does not exist")
+    void getEventById_shouldThrowException() {
+        when(eventRepository.findById(1L)).thenReturn(Optional.empty());
 
-    PagedResponse<EventResponse> response = eventService.listPublishedEvents(PageRequest.of(0, 10));
+        assertThatThrownBy(() -> eventService.getEventById(1L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 
-    assertThat(response.getContent()).hasSize(1);
-    assertThat(response.getContent().get(0).getRsvpCount()).isEqualTo(3);
-  }
+    @Test
+    @DisplayName("updateEvent - should update and return event response")
+    void updateEvent_shouldUpdateAndReturnResponse() {
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+        when(eventRepository.save(any(CampusEvent.class))).thenReturn(event);
+
+        EventResponse response = eventService.updateEvent(1L, eventRequest);
+
+        assertThat(response).isNotNull();
+        verify(eventRepository, times(1)).findById(1L);
+        verify(eventRepository, times(1)).save(any(CampusEvent.class));
+    }
+
+    @Test
+    @DisplayName("deleteEvent - should call deleteById when id exists")
+    void deleteEvent_shouldCallDelete() {
+        when(eventRepository.existsById(1L)).thenReturn(true);
+
+        eventService.deleteEvent(1L);
+
+        verify(eventRepository, times(1)).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("getEventsByCategory - should return list")
+    void getEventsByCategory_shouldReturnList() {
+        when(eventRepository.findByCategory("Technology")).thenReturn(Collections.singletonList(event));
+
+        List<EventResponse> responses = eventService.getEventsByCategory("Technology");
+
+        assertThat(responses).hasSize(1);
+        verify(eventRepository, times(1)).findByCategory("Technology");
+    }
+
+    @Test
+    @DisplayName("getUpcomingEvents - should return list")
+    void getUpcomingEvents_shouldReturnList() {
+        when(eventRepository.findByEventDateAfter(any(LocalDateTime.class))).thenReturn(Collections.singletonList(event));
+
+        List<EventResponse> responses = eventService.getUpcomingEvents();
+
+        assertThat(responses).hasSize(1);
+        verify(eventRepository, times(1)).findByEventDateAfter(any(LocalDateTime.class));
+    }
 }

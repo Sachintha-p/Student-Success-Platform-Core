@@ -1,14 +1,17 @@
 package com.sliit.studentplatform.module3.entity;
 
+import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.common.audit.AuditableEntity;
 import com.sliit.studentplatform.module1.entity.ProjectGroup;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /** A scheduled meeting for a project group. */
 @Entity
-@Table(name = "meetings")
+@Table(name = "group_meetings")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,15 +29,22 @@ public class Meeting extends AuditableEntity {
 
   @Column(nullable = false, length = 200)
   private String title;
-  @Column(columnDefinition = "TEXT")
-  private String agenda;
-  @Column(name = "meeting_time", nullable = false)
-  private LocalDateTime meetingTime;
-  @Column(name = "duration_minutes")
-  private Integer durationMinutes;
+
+  @ElementCollection
+  @CollectionTable(name = "meeting_proposed_dates", joinColumns = @JoinColumn(name = "meeting_id"))
+  @Column(name = "proposed_date")
+  @Builder.Default
+  private List<LocalDateTime> proposedDates = new ArrayList<>();
+
+  @Column(name = "final_date")
+  private LocalDateTime finalDate;
+
+  private String location;
+
   @Column(name = "meeting_link")
   private String meetingLink;
-  @Column(nullable = false, length = 20)
-  @Builder.Default
-  private String status = "SCHEDULED";
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "creator_id", nullable = false)
+  private User creator;
 }

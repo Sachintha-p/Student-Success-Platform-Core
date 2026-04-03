@@ -2,6 +2,7 @@ package com.sliit.studentplatform.module3.dto.response;
 
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -11,9 +12,11 @@ public class MeetingResponse {
   private Long id;
   private Long groupId;
   private String title;
-  private String agenda;
-  private LocalDateTime meetingTime;
-  private Integer durationMinutes;
+  private List<LocalDateTime> proposedDates;
+  private LocalDateTime finalDate;
+  private String location;
   private String meetingLink;
-  private String status;
+  private List<AvailabilitySummaryResponse> availabilitySummary;
+  private Long createdById;
+  private LocalDateTime createdAt;
 }

@@ -7,25 +7,42 @@ import com.sliit.studentplatform.module4.entity.Conversation;
 import com.sliit.studentplatform.module4.repository.ConversationRepository;
 import com.sliit.studentplatform.module4.repository.ChatMessageRepository;
 import com.sliit.studentplatform.module4.service.interfaces.IAiAssistantService;
-import com.sliit.studentplatform.module4.service.interfaces.IResourceService;
-import com.sliit.studentplatform.module4.dto.response.ResourceResponse;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.auth.repository.UserRepository;
 import java.util.List;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+/**
+ * Implementation of {@link IAiAssistantService}.
+ *
+ * <p>
+ * Sends student queries to GPT-4 via Spring AI, stores the Q&A in the
+ * conversation history, and returns a structured response.
+ */
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class AiAssistantServiceImpl implements IAiAssistantService {
 
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
   private final ConversationRepository conversationRepository;
   private final ChatMessageRepository chatMessageRepository;
   private final UserRepository userRepository;
   private final IResourceService resourceService;
+
+  public AiAssistantServiceImpl(@Autowired(required = false) ChatClient chatClient,
+      ConversationRepository conversationRepository,
+      ChatMessageRepository chatMessageRepository) {
+    this.chatClient = Optional.ofNullable(chatClient);
+    this.conversationRepository = conversationRepository;
+    this.chatMessageRepository = chatMessageRepository;
+  }
 
   @Override
   @Transactional
@@ -88,12 +105,21 @@ public class AiAssistantServiceImpl implements IAiAssistantService {
     userMessage.setContent(request.getQuery());
     chatMessageRepository.save(userMessage);
 
-    // 6. Save AI message
-    ChatMessage aiMessage = new ChatMessage();
-    aiMessage.setConversation(conversation);
-    aiMessage.setRole("assistant");
-    aiMessage.setContent(response);
-    chatMessageRepository.save(aiMessage);
+    String aiAnswer;
+    if (chatClient.isPresent()) {
+      try {
+        aiAnswer = chatClient.get().prompt()
+            .system(systemPrompt)
+            .user(request.getQuery())
+            .call()
+            .content();
+      } catch (Exception e) {
+        log.error("GPT-4 call failed: {}", e.getMessage());
+        aiAnswer = "I'm sorry, I couldn't process your question right now. Please try again later.";
+      }
+    } else {
+      aiAnswer = "I'm sorry, the AI assistant is currently unavailable. Please try again later.";
+    }
 
     // 7. Get recommended resources based on query and response
     String recommendationTopic = request.getSubject() != null ? request.getSubject() : request.getQuery();

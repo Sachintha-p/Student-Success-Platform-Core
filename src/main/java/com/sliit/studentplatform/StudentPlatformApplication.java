@@ -5,8 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
-@EnableAsync // KEEP THIS
-// REMOVE @EnableJpaAuditing from here
+@EnableAsync
 public class StudentPlatformApplication {
 
   public static void main(String[] args) {

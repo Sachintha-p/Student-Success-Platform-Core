@@ -8,9 +8,13 @@ import java.util.List;
 
 @Repository
 public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
-  List<EventRsvp> findByEventId(Long eventId);
+    List<EventRsvp> findByEventId(Long eventId);
 
-  boolean existsByEventIdAndUserId(Long eventId, Long userId);
+    List<EventRsvp> findByStudentId(Long studentId);
 
-  int countByEventId(Long eventId);
+    boolean existsByEventIdAndStudentId(Long eventId, Long studentId);
+
+    int countByEventIdAndStatus(Long eventId, String status);
+
+    EventRsvp findByEventIdAndStudentId(Long eventId, Long studentId);
 }
