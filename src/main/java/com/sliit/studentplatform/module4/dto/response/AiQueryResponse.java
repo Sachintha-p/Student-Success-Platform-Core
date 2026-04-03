@@ -13,4 +13,8 @@ public class AiQueryResponse {
   private String model;
   private Integer tokenCount;
   private java.time.LocalDateTime timestamp;
+  
+  private java.util.List<ResourceResponse> recommendedResources;
 }
+
+

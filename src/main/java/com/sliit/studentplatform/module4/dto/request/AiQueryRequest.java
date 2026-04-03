@@ -8,10 +8,12 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AiQueryRequest {
-  @NotNull
+
   private Long conversationId;
+
   @NotBlank
   @Size(max = 5000)
   private String query;
+
   private String subject;
 }

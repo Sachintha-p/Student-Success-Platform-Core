@@ -32,26 +32,36 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
 
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/auth/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/v3/api-docs/**",
-            "/actuator/health",
-            "/actuator/info"
-    };
+  private static final String[] PUBLIC_ENDPOINTS = {
+      "/api/v1/auth/**",
+      "/api/v1/ai-assistant/**",
+      "/api/v1/resources/**",
+      "/api/v1/bookmarks/**",
+      "/api/v1/module4/admin/**",
+      "/swagger-ui/**",
+      "/swagger-ui.html",
+      "/v3/api-docs/**",
+      "/actuator/health",
+      "/actuator/info"
+  };
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configure(http)) // CorsConfig provides the CorsConfigurationSource bean
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll())
-                .authenticationProvider(authenticationProvider())
-                .build();
-    }
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
+        .csrf(AbstractHttpConfigurer::disable)
+        .cors(cors -> cors.configure(http))
+        .formLogin(AbstractHttpConfigurer::disable)
+        .httpBasic(AbstractHttpConfigurer::disable)
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+            .requestMatchers("/api/v1/module4/**").permitAll()
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .anyRequest().authenticated())
+        .authenticationProvider(authenticationProvider())
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .build();
+  }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
