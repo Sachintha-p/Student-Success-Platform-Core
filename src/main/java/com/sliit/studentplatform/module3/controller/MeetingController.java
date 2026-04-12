@@ -18,7 +18,7 @@ import java.util.List;
 @RequestMapping("/api/v1/meetings")
 @RequiredArgsConstructor
 @Tag(name = "Meetings")
-public class MeetingController {
+public class  MeetingController {
   private final IMeetingService meetingService;
 
   @PostMapping
