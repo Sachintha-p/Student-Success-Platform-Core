@@ -57,6 +57,21 @@ public class ApplicationController {
     return ResponseEntity.ok(ApiResponse.success(applicationService.getApplicationsForJob(jobId), "Job applicants retrieved"));
   }
 
+  // NEW: Get all applications globally
+  @GetMapping
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<List<JobApplicationResponse>>> getAllApplications() {
+    return ResponseEntity.ok(ApiResponse.success(applicationService.getAllApplications(), "All applications retrieved"));
+  }
+
+  // NEW: Admin force delete an application
+  @DeleteMapping("/admin/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<ApiResponse<Void>> deleteApplicationAdmin(@PathVariable Long id) {
+    applicationService.deleteApplicationAdmin(id);
+    return ResponseEntity.ok(ApiResponse.success("Application deleted permanently"));
+  }
+
   @PatchMapping("/{id}/status")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<ApiResponse<JobApplicationResponse>> updateStatus(

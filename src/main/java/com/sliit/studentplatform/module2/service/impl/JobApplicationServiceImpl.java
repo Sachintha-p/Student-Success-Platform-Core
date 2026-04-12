@@ -54,9 +54,9 @@ public class JobApplicationServiceImpl implements IJobApplicationService {
             .jobListing(listing)
             .user(user)
             .resume(resume)
-            .fullName(request.getFullName()) // MAPPING NEW FIELD
-            .email(request.getEmail())       // MAPPING NEW FIELD
-            .phoneNumber(request.getPhoneNumber()) // MAPPING NEW FIELD
+            .fullName(request.getFullName())
+            .email(request.getEmail())
+            .phoneNumber(request.getPhoneNumber())
             .coverLetter(request.getCoverLetter())
             .status(Status.PENDING)
             .build();
@@ -65,6 +65,7 @@ public class JobApplicationServiceImpl implements IJobApplicationService {
   }
 
   @Override
+  @Transactional(readOnly = true)
   public List<JobApplicationResponse> getMyApplications(Long userId) {
     return applicationRepository.findByUserId(userId).stream()
             .map(this::mapToResponse)
@@ -72,11 +73,30 @@ public class JobApplicationServiceImpl implements IJobApplicationService {
   }
 
   @Override
+  @Transactional(readOnly = true)
   public List<JobApplicationResponse> getApplicationsForJob(Long jobListingId) {
     return applicationRepository.findByJobListingId(jobListingId).stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
   }
+
+  // --- NEW ADMIN METHODS ---
+  @Override
+  @Transactional(readOnly = true)
+  public List<JobApplicationResponse> getAllApplications() {
+    return applicationRepository.findAll().stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
+  }
+
+  @Override
+  @Transactional
+  public void deleteApplicationAdmin(Long applicationId) {
+    JobApplication application = applicationRepository.findById(applicationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Application", "id", applicationId));
+    applicationRepository.delete(application);
+  }
+  // -------------------------
 
   @Override
   @Transactional
@@ -104,13 +124,21 @@ public class JobApplicationServiceImpl implements IJobApplicationService {
   private JobApplicationResponse mapToResponse(JobApplication entity) {
     return JobApplicationResponse.builder()
             .id(entity.getId())
-            .jobListingId(entity.getJobListing().getId())
-            .jobTitle(entity.getJobListing().getTitle())
-            .companyName(entity.getJobListing().getCompany())
-            .userId(entity.getUser().getId())
-            .applicantName(entity.getUser().getFullName())
+
+            // Null-safe Job Listing checks
+            .jobListingId(entity.getJobListing() != null ? entity.getJobListing().getId() : null)
+            .jobTitle(entity.getJobListing() != null ? entity.getJobListing().getTitle() : "Unknown Job")
+            .companyName(entity.getJobListing() != null ? entity.getJobListing().getCompany() : "Unknown Company")
+
+            // Null-safe User checks
+            .userId(entity.getUser() != null ? entity.getUser().getId() : null)
+            .applicantName(entity.getFullName() != null ? entity.getFullName() :
+                    (entity.getUser() != null ? entity.getUser().getFullName() : "Unknown Applicant"))
+
+            // Null-safe Resume checks
             .resumeId(entity.getResume() != null ? entity.getResume().getId() : null)
             .resumeFileName(entity.getResume() != null ? entity.getResume().getFileName() : "No Resume Attached")
+
             .coverLetter(entity.getCoverLetter())
             .status(entity.getStatus())
             .recruiterNotes(entity.getRecruiterNotes())

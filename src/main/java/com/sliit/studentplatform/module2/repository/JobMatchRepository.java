@@ -11,4 +11,7 @@ public interface JobMatchRepository extends JpaRepository<JobMatch, Long> {
   List<JobMatch> findByUserIdOrderByMatchScoreDesc(Long userId);
 
   List<JobMatch> findByJobListingId(Long jobListingId);
+
+  // NEW: Allows us to clear out old matches before calculating new ones
+  void deleteByUserId(Long userId);
 }

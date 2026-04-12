@@ -10,6 +10,11 @@ public interface IJobApplicationService {
     JobApplicationResponse apply(JobApplicationRequest request, Long userId);
     List<JobApplicationResponse> getMyApplications(Long userId);
     List<JobApplicationResponse> getApplicationsForJob(Long jobListingId);
+
+    // NEW ADMIN METHODS
+    List<JobApplicationResponse> getAllApplications();
+    void deleteApplicationAdmin(Long applicationId);
+
     JobApplicationResponse updateApplicationStatus(Long applicationId, Status status, String notes);
     void withdrawApplication(Long applicationId, Long userId);
 }
