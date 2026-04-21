@@ -8,4 +8,9 @@ import java.util.List;
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
   List<Conversation> findByUserIdAndActiveTrue(Long userId);
+
+  @org.springframework.data.jpa.repository.Query("SELECT c.subject, COUNT(c.id) FROM Conversation c GROUP BY c.subject ORDER BY COUNT(c.id) DESC")
+  List<Object[]> countConversationsBySubject();
+
+  List<Conversation> findTop10ByActiveTrueOrderByCreatedAtDesc();
 }

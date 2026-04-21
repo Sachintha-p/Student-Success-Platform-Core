@@ -1,5 +1,6 @@
 package com.sliit.studentplatform.module4.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sliit.studentplatform.auth.entity.User;
 import com.sliit.studentplatform.common.audit.AuditableEntity;
 import jakarta.persistence.*;
@@ -34,5 +35,6 @@ public class StudyResource extends AuditableEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "added_by")
+  @JsonIgnore
   private User addedBy;
 }

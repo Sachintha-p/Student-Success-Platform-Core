@@ -1,6 +1,10 @@
 package com.sliit.studentplatform.module1.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,6 +12,9 @@ import com.sliit.studentplatform.auth.entity.User;
 
 @Entity
 @Table(name = "project_groups")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProjectGroup {
 
     @Id
@@ -26,11 +33,12 @@ public class ProjectGroup {
 
     private Integer semester;
 
-    // 🔧 FIX: Added the @Column annotation to handle existing null values in the DB
     @Column(columnDefinition = "boolean default true")
+    @Builder.Default
     private boolean open = true;
 
     @ElementCollection
+    @Builder.Default
     private List<String> requiredSkills = new ArrayList<>();
 
     @ManyToOne
@@ -43,11 +51,8 @@ public class ProjectGroup {
             joinColumns = @JoinColumn(name = "group_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
+    @Builder.Default
     private List<User> members = new ArrayList<>();
-
-    // --- CONSTRUCTORS ---
-    public ProjectGroup() {
-    }
 
     // --- GETTERS AND SETTERS ---
 

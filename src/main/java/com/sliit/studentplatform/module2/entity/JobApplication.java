@@ -6,11 +6,8 @@ import com.sliit.studentplatform.common.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
 
-/** A student's application to a specific job listing. */
 @Entity
-@Table(name = "job_applications", uniqueConstraints = {
-    @UniqueConstraint(columnNames = { "job_listing_id", "user_id" }, name = "uq_job_application")
-})
+@Table(name = "job_applications")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,6 +30,16 @@ public class JobApplication extends AuditableEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "resume_id")
   private Resume resume;
+
+  // --- NEW CONTACT FIELDS ---
+  @Column(name = "full_name")
+  private String fullName;
+
+  @Column(name = "email")
+  private String email;
+
+  @Column(name = "phone_number")
+  private String phoneNumber;
 
   @Column(name = "cover_letter", columnDefinition = "TEXT")
   private String coverLetter;

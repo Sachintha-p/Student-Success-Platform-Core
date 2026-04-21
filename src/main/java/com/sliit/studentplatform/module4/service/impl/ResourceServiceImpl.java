@@ -6,9 +6,9 @@ import com.sliit.studentplatform.module4.entity.StudyResource;
 import com.sliit.studentplatform.module4.repository.BookmarkRepository;
 import com.sliit.studentplatform.module4.repository.StudyResourceRepository;
 import com.sliit.studentplatform.module4.service.interfaces.IResourceService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +16,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ResourceServiceImpl implements IResourceService {
 
   private final StudyResourceRepository resourceRepository;
   private final BookmarkRepository bookmarkRepository;
-  private final ChatClient chatClient;
+  private final Optional<ChatClient> chatClient;
+
+  public ResourceServiceImpl(StudyResourceRepository resourceRepository,
+      BookmarkRepository bookmarkRepository,
+      @Autowired(required = false) ChatClient chatClient) {
+    this.resourceRepository = resourceRepository;
+    this.bookmarkRepository = bookmarkRepository;
+    this.chatClient = Optional.ofNullable(chatClient);
+  }
 
   @Override
   @Transactional(readOnly = true)
@@ -53,9 +60,56 @@ public class ResourceServiceImpl implements IResourceService {
   @Transactional(readOnly = true)
   public List<ResourceResponse> getAiRecommendations(String topic, Long userId) {
     log.info("Getting AI resource recommendations for topic: {}", topic);
-    // For scaffold: return resources matching the topic as a subject, filtering by
-    // AI-relevance
-    return searchResources(topic, null, userId);
+    
+    List<StudyResource> resources = resourceRepository.findBySubjectContainingIgnoreCase(topic);
+    if (resources.isEmpty()) {
+      resources = resourceRepository.findByTitleContainingIgnoreCase(topic);
+    }
+    if (resources.isEmpty()) {
+      resources = resourceRepository.findByTag(topic);
+    }
+    return resources.stream()
+        .limit(3)
+        .map(r -> mapToResponse(r, userId))
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  @Transactional
+  public ResourceResponse createResource(com.sliit.studentplatform.module4.dto.request.ResourceRequest request) {
+    StudyResource resource = StudyResource.builder()
+        .title(request.getTitle())
+        .url(request.getUrl())
+        .description(request.getDescription())
+        .subject(request.getSubject())
+        .type(request.getType())
+        .tags(request.getTags() != null ? request.getTags().toArray(new String[0]) : new String[0])
+        .build();
+    return mapToResponse(resourceRepository.save(resource), null);
+  }
+
+  @Override
+  @Transactional
+  public ResourceResponse updateResource(Long id, com.sliit.studentplatform.module4.dto.request.ResourceRequest request) {
+    StudyResource resource = resourceRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Resource not found"));
+    resource.setTitle(request.getTitle());
+    resource.setUrl(request.getUrl());
+    resource.setDescription(request.getDescription());
+    resource.setSubject(request.getSubject());
+    resource.setType(request.getType());
+    resource.setTags(request.getTags() != null ? request.getTags().toArray(new String[0]) : new String[0]);
+    return mapToResponse(resourceRepository.save(resource), null);
+  }
+
+  @Override
+  @Transactional
+  public void deleteResource(Long id) {
+    if (!resourceRepository.existsById(id)) {
+      throw new ResourceNotFoundException("StudyResource", "id", id);
+    }
+    bookmarkRepository.deleteByResourceId(id);
+    resourceRepository.deleteById(id);
   }
 
   private ResourceResponse mapToResponse(StudyResource r, Long userId) {

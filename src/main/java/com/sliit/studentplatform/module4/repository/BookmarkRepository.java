@@ -10,4 +10,6 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
   List<Bookmark> findByUserId(Long userId);
 
   boolean existsByUserIdAndResourceId(Long userId, Long resourceId);
+
+  void deleteByResourceId(Long resourceId);
 }

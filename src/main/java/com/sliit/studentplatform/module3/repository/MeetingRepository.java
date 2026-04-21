@@ -7,7 +7,7 @@ import java.util.List;
 
 @Repository
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
-  List<Meeting> findByGroupId(Long groupId);
-
-  List<Meeting> findByGroupIdAndStatus(Long groupId, String status);
+  List<Meeting> findByGroupIdOrderByCreatedAtDesc(Long groupId);
+  List<Meeting> findAllByOrderByCreatedAtDesc();
+  List<Meeting> findByCreatorIdOrderByCreatedAtDesc(Long creatorId);
 }

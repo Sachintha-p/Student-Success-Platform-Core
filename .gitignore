@@ -1,13 +1,13 @@
 # Byte-compiled / optimized / DLL files
 *.class
 *.pyc
-
+/uploads
 # Maven build output
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-
+*.properties
 # IDE-specific files
 .idea/
 *.iml

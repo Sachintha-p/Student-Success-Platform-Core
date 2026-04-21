@@ -4,7 +4,9 @@ import com.sliit.studentplatform.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
+// ✨ ADD THESE TWO IMPORTS ✨
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Extended profile for student users.
@@ -51,6 +53,8 @@ public class Student extends AuditableEntity {
    * List of self-declared skills, stored as a PostgreSQL text array.
    * Example: {Java, Python, ML, React}
    */
+  // ✨ ADD THIS ANNOTATION ✨
+  @JdbcTypeCode(SqlTypes.ARRAY)
   @Column(columnDefinition = "text[]")
   private String[] skills;
 

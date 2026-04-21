@@ -1,22 +1,24 @@
 package com.sliit.studentplatform.module3.service.interfaces;
 
-import com.sliit.studentplatform.common.response.PagedResponse;
-import com.sliit.studentplatform.module3.dto.request.CreateEventRequest;
+import com.sliit.studentplatform.module3.dto.request.EventRequest;
 import com.sliit.studentplatform.module3.dto.response.EventResponse;
-import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface IEventService {
-  EventResponse createEvent(CreateEventRequest request, Long organizerId);
+    EventResponse createEvent(EventRequest request);
 
-  EventResponse getEventById(Long eventId);
+    List<EventResponse> getAllEvents();
 
-  PagedResponse<EventResponse> listPublishedEvents(Pageable pageable);
+    EventResponse getEventById(Long id);
 
-  EventResponse updateEvent(Long eventId, CreateEventRequest request, Long userId);
+    EventResponse updateEvent(Long id, EventRequest request);
 
-  void deleteEvent(Long eventId, Long userId);
+    void deleteEvent(Long id);
 
-  EventResponse rsvpToEvent(Long eventId, Long userId);
+    List<EventResponse> getEventsByCategory(String category);
 
-  EventResponse cancelRsvp(Long eventId, Long userId);
+    List<EventResponse> getUpcomingEvents();
+
+    List<EventResponse> getFilteredEvents(String category, boolean upcoming);
 }
