@@ -1,6 +1,7 @@
 package com.sliit.studentplatform.module2.controller;
 
 import com.sliit.studentplatform.common.response.ApiResponse;
+import com.sliit.studentplatform.common.security.UserPrincipal;
 import com.sliit.studentplatform.module2.dto.request.JobListingRequest;
 import com.sliit.studentplatform.module2.service.interfaces.IJobListingService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,8 +24,10 @@ public class AdminJobController {
 
     // 1. CREATE A JOB
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> createJob(@Valid @RequestBody JobListingRequest request) {
-        var createdJob = jobListingService.createJob(request);
+    public ResponseEntity<ApiResponse<?>> createJob(
+            @Valid @RequestBody JobListingRequest request,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        var createdJob = jobListingService.createJob(request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdJob, "Job listing created successfully"));
     }

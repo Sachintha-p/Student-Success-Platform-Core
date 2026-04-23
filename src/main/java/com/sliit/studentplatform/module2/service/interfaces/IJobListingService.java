@@ -6,7 +6,8 @@ import java.util.List;
 
 public interface IJobListingService {
 
-    JobListingResponse createJob(JobListingRequest request);
+    // Now accepts the request and the ID of the admin creating the job
+    JobListingResponse createJob(JobListingRequest request, Long userId);
 
     JobListingResponse updateJob(Long id, JobListingRequest request);
 
@@ -14,6 +15,5 @@ public interface IJobListingService {
 
     List<JobListingResponse> getAllJobs();
 
-    // >>> ADD THIS METHOD SO THE SCANNER CAN FIND THE JOB <<<
     JobListingResponse getJobById(Long id);
 }

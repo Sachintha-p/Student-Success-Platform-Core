@@ -1,13 +1,5 @@
 package com.sliit.studentplatform.ai.controller;
 
-<<<<<<< main
-import com.sliit.studentplatform.ai.service.AiMatchmakerService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-=======
 import com.sliit.studentplatform.common.response.ApiResponse;
 import com.sliit.studentplatform.module2.service.interfaces.PdfExtractionService;
 import lombok.RequiredArgsConstructor;
@@ -17,21 +9,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
->>>>>>> development
 
 @RestController
 @RequestMapping("/api/v1/ai")
 @RequiredArgsConstructor
 public class AiController {
 
-<<<<<<< main
-    private final AiMatchmakerService aiMatchmakerService;
-
-    @GetMapping("/test")
-    public ResponseEntity<String> testConnection() {
-        String aiResponse = aiMatchmakerService.testAiConnection();
-        return ResponseEntity.ok(aiResponse);
-=======
     private final PdfExtractionService pdfExtractionService;
 
     /**
@@ -64,6 +47,5 @@ public class AiController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to process the resume for AI analysis: " + e.getMessage()));
         }
->>>>>>> development
     }
 }

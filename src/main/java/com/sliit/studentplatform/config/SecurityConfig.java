@@ -17,13 +17,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+// ✅ ADD THIS IMPORT (VERY IMPORTANT)
+import com.sliit.studentplatform.common.security.JwtAuthenticationFilter;
+
 /**
  * Spring Security 6 configuration.
- *
- * <p>
- * Stateless JWT-based authentication. All endpoints require a valid Bearer
- * token
- * except for the public whitelist defined below.
  */
 @Configuration
 @EnableWebSecurity
@@ -32,36 +30,40 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
 
-  private static final String[] PUBLIC_ENDPOINTS = {
-      "/api/v1/auth/**",
-      "/api/v1/ai-assistant/**",
-      "/api/v1/resources/**",
-      "/api/v1/bookmarks/**",
-      "/api/v1/module4/admin/**",
-      "/swagger-ui/**",
-      "/swagger-ui.html",
-      "/v3/api-docs/**",
-      "/actuator/health",
-      "/actuator/info"
-  };
+    // ✅ ADD THIS FIELD (FIXES YOUR ERROR)
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> cors.configure(http))
-        .formLogin(AbstractHttpConfigurer::disable)
-        .httpBasic(AbstractHttpConfigurer::disable)
-        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-            .requestMatchers("/api/v1/module4/**").permitAll()
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            .anyRequest().authenticated())
-        .authenticationProvider(authenticationProvider())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-        .build();
-  }
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/v1/auth/**",
+            "/api/v1/ai-assistant/**",
+            "/api/v1/resources/**",
+            "/api/v1/bookmarks/**",
+            "/api/v1/module4/admin/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
+            "/actuator/health",
+            "/actuator/info"
+    };
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configure(http))
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers("/api/v1/module4/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .anyRequest().authenticated())
+                .authenticationProvider(authenticationProvider())
+                // ✅ NOW THIS WORKS (jwtAuthenticationFilter is defined)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
