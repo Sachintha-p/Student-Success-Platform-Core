@@ -4,13 +4,16 @@ import com.sliit.studentplatform.auth.dto.request.EmailLoginRequest;
 import com.sliit.studentplatform.auth.dto.request.LoginRequest;
 import com.sliit.studentplatform.auth.dto.request.VerifyOtpRequest;
 import com.sliit.studentplatform.auth.dto.response.AuthResponse;
+import com.sliit.studentplatform.auth.dto.response.UserProfileResponse;
+import com.sliit.studentplatform.auth.entity.User;
+import com.sliit.studentplatform.auth.repository.UserRepository;
 import com.sliit.studentplatform.auth.service.interfaces.IAuthService;
+import com.sliit.studentplatform.common.response.ApiResponse;
+import com.sliit.studentplatform.common.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -18,6 +21,7 @@ import java.util.Map;
 public class AuthController {
 
   private final IAuthService authService;
+  private final UserRepository userRepository;
 
   @PostMapping("/login/email")
   public ResponseEntity<String> requestEmailOtp(@RequestBody EmailLoginRequest request) {
@@ -37,26 +41,21 @@ public class AuthController {
     return ResponseEntity.ok(response);
   }
 
-  /**
-   * DYNAMIC PROFILE ENDPOINT:
-   * This now grabs the real email from the logged-in user's token!
-   */
   @GetMapping("/profile")
-  public ResponseEntity<?> getUserProfile(Authentication authentication) {
-    if (authentication == null) {
-      return ResponseEntity.status(401).body("Not authenticated");
-    }
+  public ResponseEntity<ApiResponse<UserProfileResponse>> getUserProfile(
+          @AuthenticationPrincipal UserPrincipal currentUser) {
 
-    // Grabs the email/username stored in the JWT Subject
-    String userEmail = authentication.getName();
+    User user = userRepository.findById(currentUser.getId())
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-    // Determine if it's the admin or a student to set a display name
-    String displayName = userEmail.contains("admin") ? "System Admin" : "Student Member";
+    UserProfileResponse response = UserProfileResponse.builder()
+            .id(user.getId())
+            .fullName(user.getFullName())
+            .email(user.getEmail())
+            .role(user.getRole())
+            .enabled(user.isEnabled())
+            .build();
 
-    return ResponseEntity.ok(Map.of(
-            "fullName", displayName,
-            "email", userEmail,
-            "role", authentication.getAuthorities().toString()
-    ));
+    return ResponseEntity.ok(ApiResponse.success(response, "Profile retrieved successfully"));
   }
 }

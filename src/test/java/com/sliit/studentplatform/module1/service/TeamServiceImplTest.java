@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
@@ -79,11 +79,8 @@ class TeamServiceImplTest {
         .id(10L).name("Team Alpha").owner(creator).maxMembers(4).open(true).build();
 
     when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-    when(groupRepository.findByOwnerId(eq(1L), any(Pageable.class)))
-        .thenReturn(new PageImpl<>(Collections.emptyList()));
     when(groupRepository.save(any(ProjectGroup.class))).thenReturn(savedGroup);
     when(memberRepository.save(any(GroupMember.class))).thenReturn(new GroupMember());
-    when(memberRepository.countByGroupId(10L)).thenReturn(1);
 
     // Act
     GroupResponse response = teamService.createGroup(createRequest, 1L);

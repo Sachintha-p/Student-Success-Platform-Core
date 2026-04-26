@@ -28,6 +28,9 @@ public class GroupJoinRequest {
     @Column(nullable = false)
     private String status;
 
+    @Column(columnDefinition = "TEXT")
+    private String message;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -1,4 +1,5 @@
-package com.sliit.studentplatform.module1.dto;
+
+package com.sliit.studentplatform.module1.dto.request;
 
 import lombok.Builder;
 import lombok.Data;

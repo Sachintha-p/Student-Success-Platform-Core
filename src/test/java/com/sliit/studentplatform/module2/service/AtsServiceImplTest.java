@@ -104,16 +104,15 @@ public class AtsServiceImplTest {
             .improvements("[]")
             .build();
 
-    when(atsAnalysisRepository.findByResumeId(mockResumeId)).thenReturn(Arrays.asList(mockAnalysis1, mockAnalysis2));
+    when(atsAnalysisRepository.findByResumeIdOrderByCreatedAtDesc(mockResumeId)).thenReturn(Arrays.asList(mockAnalysis1, mockAnalysis2));
 
     // Act
-    // FIX: Testing the newly added history method
     List<AtsAnalysis> history = atsService.getAnalysisHistory(mockResumeId);
 
     // Assert
     assertNotNull(history);
     assertEquals(2, history.size());
     assertEquals(80, history.get(0).getAtsScore());
-    verify(atsAnalysisRepository, times(1)).findByResumeId(mockResumeId);
+    verify(atsAnalysisRepository, times(1)).findByResumeIdOrderByCreatedAtDesc(mockResumeId);
   }
 }

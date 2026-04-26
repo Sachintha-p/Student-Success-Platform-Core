@@ -136,7 +136,7 @@ public class TeamServiceImpl implements ITeamService {
 
     @Override
     @Transactional
-    public void joinGroup(Long groupId, Long userId) {
+    public void joinGroup(Long groupId, Long userId, String message) {
         ProjectGroup group = findGroupOrThrow(groupId);
         User user = userRepository.findById(userId).orElseThrow();
 
@@ -154,6 +154,7 @@ public class TeamServiceImpl implements ITeamService {
         request.setGroup(group);
         request.setStudent(user);
         request.setStatus("PENDING");
+        request.setMessage(message);
         joinRequestRepository.save(request);
     }
 
@@ -174,8 +175,13 @@ public class TeamServiceImpl implements ITeamService {
         List<GroupJoinRequest> requests = joinRequestRepository.findByGroupOwnerIdAndStatus(ownerId, "PENDING");
         return requests.stream().map(req -> JoinRequestResponse.builder()
                 .id(req.getId())
-                .studentName(req.getStudent().getFullName())
-                .teamName(req.getGroup().getName())
+                .groupId(req.getGroup().getId())
+                .groupName(req.getGroup().getName())
+                .inviterId(req.getStudent().getId())
+                .inviterName(req.getStudent().getFullName())
+                .message(req.getMessage())
+                .status(req.getStatus())
+                .createdAt(req.getCreatedAt())
                 .studentSkills(new ArrayList<>())
                 .build()).collect(Collectors.toList());
     }
