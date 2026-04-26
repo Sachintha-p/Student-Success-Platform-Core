@@ -81,13 +81,13 @@ class EventServiceImplTest {
     @Test
     @DisplayName("getAllEvents - should return list of event responses")
     void getAllEvents_shouldReturnList() {
-        when(eventRepository.findAll()).thenReturn(Collections.singletonList(event));
+        when(eventRepository.findAllByOrderByCreatedAtDesc()).thenReturn(Collections.singletonList(event));
 
         List<EventResponse> responses = eventService.getAllEvents();
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getTitle()).isEqualTo("Tech Talk");
-        verify(eventRepository, times(1)).findAll();
+        verify(eventRepository, times(1)).findAllByOrderByCreatedAtDesc();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.sliit.studentplatform.common.response.ApiResponse;
 import com.sliit.studentplatform.common.response.PagedResponse;
 import com.sliit.studentplatform.common.security.UserPrincipal;
 import com.sliit.studentplatform.module1.dto.request.CreateGroupRequest;
+import com.sliit.studentplatform.module1.dto.request.JoinRequestDto;
 import com.sliit.studentplatform.module1.dto.request.TeamEmailInviteRequest;
 import com.sliit.studentplatform.module1.dto.response.GroupResponse;
 import com.sliit.studentplatform.module1.dto.response.JoinRequestResponse;
@@ -77,8 +78,11 @@ public class TeamController {
     @Operation(summary = "Join an open project group")
     @PostMapping("/{groupId}/join")
     public ResponseEntity<ApiResponse<Void>> joinGroup(
-            @PathVariable Long groupId, @AuthenticationPrincipal UserPrincipal currentUser) {
-        teamService.joinGroup(groupId, currentUser.getId());
+            @PathVariable Long groupId,
+            @RequestBody(required = false) JoinRequestDto body,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        String message = body != null ? body.getMessage() : null;
+        teamService.joinGroup(groupId, currentUser.getId(), message);
         return ResponseEntity.ok(ApiResponse.success("Join Request Sent Successfully!"));
     }
 

@@ -44,4 +44,13 @@ public class MatchingController {
         matchingService.calculateMatchScore(currentUser.getId(), groupId),
         "Match score calculated"));
   }
+
+  @GetMapping("/score-for-student")
+  public ResponseEntity<ApiResponse<MatchScoreResponse>> matchScoreForStudent(
+      @RequestParam Long groupId,
+      @RequestParam Long studentId) {
+    return ResponseEntity.ok(ApiResponse.success(
+        matchingService.calculateMatchScore(studentId, groupId),
+        "Match score calculated"));
+  }
 }

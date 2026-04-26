@@ -24,7 +24,7 @@ public interface ITeamService {
 
     void leaveGroup(Long groupId, Long userId);
 
-    void joinGroup(Long groupId, Long userId);
+    void joinGroup(Long groupId, Long userId, String message);
     void inviteUserByEmail(Long groupId, String email);
 
     // --- NEW: JOIN REQUEST METHODS ---

@@ -83,16 +83,21 @@ class AiAssistantServiceImplTest {
   }
 
   @Test
-  @DisplayName("askQuestion — should handle AI service failure")
+  @DisplayName("askQuestion — should return fallback response on AI service failure")
   void askQuestion_shouldHandleAiFailure() {
     // Setup
     when(userRepository.findById(anyLong())).thenReturn(Optional.of(user));
     when(conversationRepository.findById(anyLong())).thenReturn(Optional.of(conversation));
-    
+    when(chatMessageRepository.findByConversationId(anyLong())).thenReturn(new ArrayList<>());
     when(chatClient.prompt()).thenThrow(new RuntimeException("AI Service Down"));
+    when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(new ChatMessage());
+    when(resourceService.getAiRecommendations(anyString(), anyLong())).thenReturn(new ArrayList<>());
 
-    // Execute & Verify
-    assertThatThrownBy(() -> aiAssistantService.askQuestion(queryRequest, 12L))
-            .isInstanceOf(RuntimeException.class);
+    // Execute
+    AiQueryResponse response = aiAssistantService.askQuestion(queryRequest, 12L);
+
+    // Verify — service catches the error and returns a graceful fallback
+    assertThat(response).isNotNull();
+    assertThat(response.getAnswer()).contains("couldn't process");
   }
 }
